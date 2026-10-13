@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Shadowing">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EEF1F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E131B" media="(prefers-color-scheme: dark)">
+<title>Shadowing Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: phone-first practice console. Video pinned on top, one practice panel below, tab bar at the bottom. Widens to two columns on a laptop. */
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --sunken:#E3E8EE; --line:#CDD5DF;
+  --ink:#121B2B; --muted:#5A6577; --faint:#8893A4;
+  --accent:#2944C2; --accent-ink:#FFFFFF; --accent-soft:#DCE2FA;
+  --rep:#D9822B; --rep-soft:#FBE8D3; --rep-ink:#FFFFFF;
+  --good:#1F7A4D; --good-soft:#D6F0E2; --warn:#A65F00; --bad:#B4322A; --bad-soft:#F8DCD9;
+  --hl:#FFE38A;
+  --f-display:"Schibsted Grotesk","Helvetica Neue",Arial,sans-serif;
+  --f-read:"Newsreader",Georgia,serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  --r:12px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0E131B; --surface:#161D28; --sunken:#1D2633; --line:#2C3747;
+  --ink:#E7ECF3; --muted:#A1ACBD; --faint:#6E7A8C;
+  --accent:#7D93FF; --accent-ink:#0B1020; --accent-soft:#232E55;
+  --rep:#F0A04B; --rep-soft:#3A2A17; --rep-ink:#1A1206;
+  --good:#5CC892; --good-soft:#163527; --warn:#E3A347; --bad:#F07A6E; --bad-soft:#3D1D1A;
+  --hl:#5A4A10; color-scheme:dark;
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-display);font-size:16px;line-height:1.5;
+  padding:env(safe-area-inset-top,0px) 0 calc(76px + env(safe-area-inset-bottom,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+a{color:var(--accent)}
+.wrap{max-width:1100px;margin:0 auto;padding-inline:16px}
+
+/* header + tab bar */
+.top{display:flex;align-items:center;gap:10px;padding-block:14px 10px}
+.top h1{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.top .now{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(3,1fr);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px))}
+.tabs button{border:0;background:transparent;padding:8px 4px;border-radius:10px;font-size:13px;font-weight:700;color:var(--muted);display:grid;justify-items:center;gap:2px;cursor:pointer}
+.tabs button svg{width:22px;height:22px}
+.tabs button[aria-current="true"]{color:var(--accent);background:var(--accent-soft)}
+@media (min-width:900px){
+  body{padding-bottom:24px}
+  .tabs{position:static;max-width:420px;margin:0 0 0 auto;border:0;background:var(--sunken);border-radius:999px;padding:4px;grid-template-columns:repeat(3,auto);gap:4px}
+  .tabs button{grid-auto-flow:column;padding:6px 14px;border-radius:999px}
+  .tabs button svg{width:16px;height:16px}
+  .tabs button[aria-current="true"]{background:var(--surface);color:var(--ink)}
+}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.note{font-size:13px;color:var(--muted)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.stack{display:grid;gap:14px}
+.btn{border:1px solid var(--line);background:var(--surface);min-height:44px;padding:8px 16px;border-radius:10px;cursor:pointer;font-weight:700;display:inline-flex;gap:8px;align-items:center;justify-content:center;text-decoration:none;color:var(--ink);font-size:15px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.repc{background:var(--rep);border-color:var(--rep);color:var(--rep-ink)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.sm{min-height:36px;padding:6px 12px;font-size:14px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.rec[aria-pressed="true"]{background:var(--bad);border-color:var(--bad);color:#fff}
+input[type=url],input[type=text],textarea,select{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;width:100%;min-width:0;font-size:16px}
+textarea{resize:vertical}
+.pill{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--sunken);color:var(--muted)}
+.pill.ok{background:var(--good-soft);color:var(--good)}
+.msg{font-size:14px;padding:10px 12px;border-radius:10px;background:var(--accent-soft);color:var(--accent)}
+.msg.err{background:var(--bad-soft);color:var(--bad)}
+
+/* videos */
+.vidlist{display:grid;gap:10px}
+.vid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.vid b{display:block;overflow-wrap:anywhere;line-height:1.3}
+.vid .m{font-size:13px;color:var(--muted)}
+details summary{cursor:pointer;font-weight:700;font-size:15px}
+
+/* practice */
+.practice{display:grid;gap:14px}
+@media (min-width:900px){.practice{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start}.pin{position:sticky;top:12px}}
+.pin{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);margin-inline:-16px;padding-inline:16px;padding-block:0 6px}
+@media (min-width:900px){.pin{margin:0;padding:0}}
+.playerbox{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:var(--r);overflow:hidden}
+.playerbox #player,.playerbox iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.modes{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--sunken);border-radius:12px;padding:4px;gap:4px}
+.modes button{border:0;background:transparent;border-radius:9px;min-height:38px;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer}
+.modes button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.seg-title{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.seg-title b{font-size:17px}
+.time{font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bigplay{display:grid;grid-template-columns:56px 1fr 56px;gap:8px}
+.bigplay .btn{min-height:56px;font-size:17px}
+.nudge{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.nudge .btn{min-height:38px;font-size:13px;padding:4px}
+.status{font-size:14px;color:var(--muted);min-height:1.5em}
+.status.turn{color:var(--rep);font-weight:700}
+.status.err{color:var(--bad)}
+.settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.settings label{display:grid;gap:4px;font-size:13px;font-weight:700;color:var(--muted)}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;font-weight:700}
+.switch input{width:22px;height:22px;accent-color:var(--accent)}
+.repsrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dots{display:flex;gap:6px}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--rep)}
+.dot.f{background:var(--rep)}
+.phrases{display:grid;gap:8px}
+.phrase{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.phrase[aria-current="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.phrase .r{font-family:var(--f-mono);font-size:12px;color:var(--rep)}
+.linetext{font-family:var(--f-read);font-size:clamp(21px,5.6vw,28px);line-height:1.38;margin:0;min-height:2.8em}
+.linetext .w.on{background:var(--hl);border-radius:4px}
+.linetext.hidden{color:transparent;text-shadow:0 0 12px var(--faint)}
+.lines{max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.lines button{display:grid;grid-template-columns:44px 1fr auto;gap:8px;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:9px 10px;font-size:14px;cursor:pointer}
+.lines button[aria-current="true"]{background:var(--accent-soft)}
+.lines .ts,.ts{font-family:var(--f-mono);font-size:12px;color:var(--faint)}
+.lines .t{min-width:0;overflow-wrap:anywhere}
+
+/* summary */
+.sumbox{font-family:var(--f-read);font-size:19px;line-height:1.55;min-height:240px}
+.meter{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{height:8px;background:var(--sunken);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+.copied{font-family:var(--f-read);font-size:16px;line-height:1.6;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;max-height:200px;overflow:auto}
+.copied mark{background:var(--bad-soft);color:var(--bad);border-radius:3px}
+ol.steps{margin:0;padding-left:20px;color:var(--muted)}
+ol.steps li{margin-bottom:6px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>Shadowing</h1><span class="now" id="nowTitle"></span>
+    <nav class="tabs" aria-label="Sections">
+      <button data-tab="videos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 9.5v5l4.5-2.5z" fill="currentColor"/></svg>Videos</button>
+      <button data-tab="practice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 1 0 2.3-5.6"/><path d="M4 4v4h4"/></svg>Practice</button>
+      <button data-tab="summary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h14v16H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>Summary</button>
+    </nav>
+  </header>
+
+  <!-- VIDEOS -->
+  <section id="t-videos" class="stack" hidden>
+    <div class="card stack">
+      <div>
+        <div class="eyebrow">Add a video</div>
+        <h2 style="font-size:21px;margin-top:4px">Paste a YouTube link</h2>
+        <p class="note" style="margin:6px 0 0">In the YouTube app: Share → Copy link. Then tap Paste.</p>
+      </div>
+      <div class="row" style="flex-wrap:nowrap">
+        <input type="url" id="inUrl" placeholder="https://youtu.be/…" autocomplete="off" inputmode="url">
+        <button class="btn" id="btnPaste">Paste</button>
+      </div>
+      <button class="btn primary" id="btnLoad">Start practicing</button>
+      <div class="msg err" id="loadMsg" hidden></div>
+      <details>
+        <summary>Optional: add the transcript</summary>
+        <div class="stack" style="margin-top:12px">
+          <p class="note" style="margin:0">With a transcript you get a Lines mode that loops real sentences, and the summary check can spot copied phrases. Without it, read along with the video's own captions.</p>
+          <textarea id="inTranscript" rows="6" placeholder="0:00&#10;first line…&#10;0:04&#10;second line…"></textarea>
+          <span class="note" id="parseInfo"></span>
+        </div>
+      </details>
+    </div>
+    <div class="stack">
+      <div class="eyebrow">Your videos</div>
+      <div class="vidlist" id="vidList"></div>
+    </div>
+  </section>
+
+  <!-- PRACTICE -->
+  <section id="t-practice" class="practice" hidden>
+    <div class="pin">
+      <div class="playerbox"><div id="player"></div></div>
+    </div>
+    <div class="stack">
+      <div class="modes" role="group" aria-label="Practice mode">
+        <button data-mode="chunks">Chunks</button>
+        <button data-mode="phrases">My phrases</button>
+        <button data-mode="lines" id="modeLines">Lines</button>
+      </div>
+
+      <!-- chunks -->
+      <div class="card stack" id="m-chunks" hidden>
+        <div class="seg-title"><b id="chunkName">Chunk 1</b><span class="time" id="chunkTime">0:00–0:05</span></div>
+        <div class="bigplay">
+          <button class="btn" id="cPrev" aria-label="Previous chunk">‹</button>
+          <button class="btn primary" id="cPlay">▶ Play</button>
+          <button class="btn" id="cNext" aria-label="Next chunk">›</button>
+        </div>
+        <div class="nudge">
+          <button class="btn" data-shift="-1">−1s</button>
+          <button class="btn" data-shift="-0.5">−0.5s</button>
+          <button class="btn" data-shift="0.5">+0.5s</button>
+          <button class="btn" data-shift="1">+1s</button>
+        </div>
+        <div class="row" style="justify-content:space-between">
+          <label class="row note" style="gap:6px">Chunk length
+            <select id="chunkLen" style="width:auto;padding:6px 8px">
+              <option value="3">3s</option><option value="4">4s</option><option value="5" selected>5s</option><option value="6">6s</option><option value="8">8s</option>
+            </select>
+          </label>
+          <button class="btn sm" id="cSave">★ Save as phrase</button>
+        </div>
+        <p class="note" style="margin:0">Nudge moves where chunks start so they line up with the speaker's pauses.</p>
+      </div>
+
+      <!-- phrases -->
+      <div class="card stack" id="m-phrases" hidden>
+        <p class="note" style="margin:0">Play the video normally. When you hear a phrase you want, tap Grab: it saves the last few seconds and loops them.</p>
+        <div class="row" style="flex-wrap:nowrap">
+          <button class="btn repc" id="pGrab" style="flex:1"><span>↺ Grab last <span id="grabLen">4</span>s</span></button>
+          <select id="grabSel" style="width:auto" aria-label="Grab length"><option value="3">3s</option><option value="4" selected>4s</option><option value="6">6s</option><option value="8">8s</option></select>
+        </div>
+        <div id="pEdit" class="stack" hidden>
+          <div class="seg-title"><b>Selected phrase</b><span class="time" id="pTime"></span></div>
+          <div class="nudge">
+            <button class="btn" data-pe="s:-0.5">Start −</button>
+            <button class="btn" data-pe="s:0.5">Start +</button>
+            <button class="btn" data-pe="e:-0.5">End −</button>
+            <button class="btn" data-pe="e:0.5">End +</button>
+          </div>
+          <button class="btn primary" id="pPlay" style="min-height:56px">▶ Play phrase</button>
+        </div>
+        <div class="phrases" id="phraseList"></div>
+      </div>
+
+      <!-- lines -->
+      <div class="card stack" id="m-lines" hidden>
+        <div class="seg-title"><b id="lineName">Line 1</b><span class="time" id="lineTime"></span></div>
+        <p class="linetext" id="lineText"></p>
+        <div class="bigplay">
+          <button class="btn" id="lPrev" aria-label="Previous line">‹</button>
+          <button class="btn primary" id="lPlay">▶ Play</button>
+          <button class="btn" id="lNext" aria-label="Next line">›</button>
+        </div>
+        <label class="switch">Hide the text (shadow from memory)<input type="checkbox" id="lHide"></label>
+        <div class="lines" id="lineList"></div>
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <div class="card stack">
+        <div class="repsrow">
+          <span class="eyebrow" style="min-width:48px">Reps</span>
+          <div class="dots" id="dots"></div>
+          <button class="btn repc sm" id="btnRep">+1 rep</button>
+        </div>
+        <div class="row">
+          <span class="eyebrow" style="min-width:48px">Voice</span>
+          <button class="btn sm rec" id="btnRec" aria-pressed="false">● Record</button>
+          <button class="btn sm" id="btnMine" disabled>▶ Mine</button>
+          <button class="btn sm" id="btnCompare" disabled>Original → mine</button>
+        </div>
+        <span class="note" id="recNote"></span>
+      </div>
+
+      <details class="card">
+        <summary>Settings</summary>
+        <div class="stack" style="margin-top:12px">
+          <div class="settings">
+            <label>Speed<select id="rate"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1×</option><option value="1.25">1.25×</option></select></label>
+            <label>Repeat<select id="loops"><option value="1">Once</option><option value="2">2×</option><option value="3" selected>3×</option><option value="0">Until stop</option></select></label>
+            <label>Your turn<select id="gap"><option value="0.75">0.75× clip</option><option value="1" selected>1× clip</option><option value="1.5">1.5× clip</option><option value="2">2× clip</option></select></label>
+            <label>Captions<select id="cc"><option value="on" selected>Show</option><option value="off">Hide</option></select></label>
+          </div>
+          <p class="note" style="margin:0">If a button doesn't start the video the first time, tap the video once. iPhone needs one direct tap before the buttons can control it.</p>
+        </div>
+      </details>
+      <button class="btn" id="toSummary">Done → write my summary</button>
+    </div>
+  </section>
+
+  <!-- SUMMARY -->
+  <section id="t-summary" class="stack" hidden>
+    <div class="card stack">
+      <div>
+        <div class="eyebrow">Summarize in your own words</div>
+        <h2 style="font-size:21px;margin-top:4px" id="sumHeading">What was the video about?</h2>
+        <p class="note" style="margin:6px 0 0">Main idea in one sentence, two or three supporting points, and what you think.</p>
+      </div>
+      <textarea class="sumbox" id="summary" placeholder="This video explains…"></textarea>
+      <div class="meter"><span id="wc">0 words</span>
+        <label class="row" style="gap:6px">Target<select id="target" style="width:auto;padding:4px 8px"><option value="60">60</option><option value="120" selected>120</option><option value="200">200</option></select></label>
+        <span id="copyPct"></span></div>
+      <div class="bar"><i id="wcBar" style="width:0%"></i></div>
+      <details id="copiedWrap" hidden><summary>Phrases copied from the transcript</summary><div class="copied" id="copiedView" style="margin-top:10px"></div></details>
+    </div>
+    <div class="card stack">
+      <div class="eyebrow">Get feedback from Claude</div>
+      <ol class="steps"><li>Tap Copy for Claude.</li><li>Open the Claude app and paste.</li><li>You get scores, corrections and a polished version.</li></ol>
+      <button class="btn primary" id="btnCopy">Copy for Claude</button>
+      <span class="note" id="copyNote"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt=n=>{if(n==null||isNaN(n))return"";n=Math.max(0,n);const m=Math.floor(n/60),s=n-m*60;return m+":"+(s<10?"0":"")+s.toFixed(s%1?1:0)};
+const fmtI=n=>{n=Math.floor(Math.max(0,n||0));const h=Math.floor(n/3600),m=Math.floor(n%3600/60),s=n%60;return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(s).padStart(2,"0")};
+
+// ---------- storage ----------
+const KEY="sm.videos.v1",CUR="sm.current.v1",PREF="sm.prefs.v1";
+const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let vids=load(KEY,[]);
+let V=vids.find(v=>v.id===load(CUR,null))||null;
+let prefs=Object.assign({rate:1,loops:3,gap:1,cc:"on",mode:"chunks",grab:4},load(PREF,{}));
+const savePrefs=()=>save(PREF,prefs);
+function persist(){if(!V)return;V.updated=Date.now();const i=vids.findIndex(v=>v.id===V.id);if(i>=0)vids[i]=V;else vids.unshift(V);save(KEY,vids);save(CUR,V.id)}
+
+// ---------- transcript parsing (optional) ----------
+const TS_RE=/^(\d{1,2}:)?\d{1,2}:\d{2}$/,TS_IN=/^((?:\d{1,2}:)?\d{1,2}:\d{2})\s+(.+)$/,A11Y=/^\d+\s+(seconds?|minutes?|hours?)(,?\s*\d+\s+(seconds?|minutes?))*$/i;
+const tsToSec=s=>s.split(":").map(Number).reduce((a,b)=>a*60+b,0);
+const clean=t=>t.replace(/\[(music|applause|laughter)[^\]]*\]/gi,"").replace(/<[^>]+>/g,"").replace(/\s+/g," ").trim();
+function parseTranscript(raw){
+  const rows=raw.replace(/\r/g,"").split("\n").map(s=>s.trim());let fr=[];
+  if(rows.some(r=>r.includes("-->"))){let c=null;for(const r of rows){if(r.includes("-->")){const st=r.split("-->")[0].trim().replace(",",".");c={t:st.split(":").map(parseFloat).reduce((a,b)=>a*60+b,0),text:""};fr.push(c);continue}if(!r){c=null;continue}if(c&&!/^\d+$/.test(r)&&r!=="WEBVTT")c.text+=(c.text?" ":"")+r}}
+  else{let t=null,c=null;for(const r of rows){if(!r)continue;if(TS_RE.test(r)){t=tsToSec(r);c=null;continue}if(A11Y.test(r))continue;const m=r.match(TS_IN);if(m){fr.push({t:tsToSec(m[1]),text:m[2]});c=null;t=null;continue}if(t!=null&&!c){c={t,text:r};fr.push(c);t=null;continue}if(c){c.text+=" "+r;continue}}}
+  fr=fr.map(f=>({t:f.t,text:clean(f.text)})).filter(f=>f.text&&f.t!=null);
+  const punct=fr.some(f=>/[.!?]["'”’)]?$/.test(f.text)),cap=punct?26:12,out=[];let acc=null;
+  for(const f of fr){if(!acc)acc={t:f.t,text:f.text};else acc.text+=" "+f.text;const wc=acc.text.split(/\s+/).length;if((punct&&/[.!?]["'”’)]?$/.test(acc.text)&&wc>=2)||wc>=cap){out.push(acc);acc=null}}
+  if(acc)out.push(acc);return out;
+}
+function videoIdFrom(u){if(!u)return"";u=u.trim();if(/^[\w-]{11}$/.test(u))return u;const m=u.match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([\w-]{11})/);return m?m[1]:""}
+
+// ---------- tabs ----------
+function tab(name){
+  if(name!=="videos"&&!V)name="videos";
+  stopAll();
+  for(const t of["videos","practice","summary"])$("t-"+t).hidden=t!==name;
+  document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===name?"true":"false"));
+  $("nowTitle").textContent=V?"· "+(V.title||"Untitled"):"";
+  if(name==="videos")renderVideos();
+  if(name==="practice")renderPractice();
+  if(name==="summary")renderSummary();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll(".tabs button").forEach(b=>b.addEventListener("click",()=>tab(b.dataset.tab)));
+
+// ---------- videos ----------
+function showLoadMsg(t){$("loadMsg").textContent=t;$("loadMsg").hidden=!t}
+$("btnPaste").addEventListener("click",async()=>{
+  try{const t=await navigator.clipboard.readText();if(t){$("inUrl").value=t.trim();showLoadMsg("")}}
+  catch(e){$("inUrl").focus();showLoadMsg("Long-press the box and choose Paste.")}
+});
+$("inTranscript").addEventListener("input",()=>{const n=parseTranscript($("inTranscript").value).length;$("parseInfo").textContent=$("inTranscript").value.trim()?(n?n+" timed lines found.":"No timestamps found. Lines mode needs times like 0:12."):""});
+$("btnLoad").addEventListener("click",()=>{
+  const id=videoIdFrom($("inUrl").value);
+  if(!id){showLoadMsg("That doesn't look like a YouTube link.");return}
+  showLoadMsg("");
+  let v=vids.find(x=>x.id===id);
+  const lines=$("inTranscript").value.trim()?parseTranscript($("inTranscript").value):null;
+  if(!v){v={id,title:"",created:Date.now(),updated:Date.now(),chunk:{len:5,offset:0,idx:0},phrases:[],lines:[],lineIdx:0,chunkReps:{},summary:"",target:120}}
+  if(lines&&lines.length){v.lines=lines.map(l=>({t:l.t,text:l.text,reps:0}));v.lineIdx=0}
+  V=v;persist();$("inUrl").value="";$("inTranscript").value="";$("parseInfo").textContent="";
+  if(V.lines.length)prefs.mode="lines";else if(prefs.mode==="lines")prefs.mode="chunks";savePrefs();
+  tab("practice");
+});
+function renderVideos(){
+  const list=$("vidList");
+  if(!vids.length){list.innerHTML='<p class="note" style="margin:0">No videos yet. Paste a link above to start.</p>';return}
+  list.innerHTML=vids.slice().sort((a,b)=>b.updated-a.updated).map(v=>{
+    const reps=Object.values(v.chunkReps||{}).reduce((a,b)=>a+b,0)+(v.phrases||[]).reduce((a,p)=>a+(p.reps||0),0)+(v.lines||[]).reduce((a,l)=>a+(l.reps||0),0);
+    const wc=(v.summary||"").trim().split(/\s+/).filter(Boolean).length;
+    return `<div class="vid"><div style="min-width:0"><b>${esc(v.title||"YouTube "+v.id)}</b><div class="m">${reps} reps · ${(v.phrases||[]).length} phrases${wc>=15?' · <span class="pill ok">Summary</span>':""}</div></div>
+    <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm primary" data-open="${esc(v.id)}">Open</button><button class="btn sm ghost" data-del="${esc(v.id)}" aria-label="Delete">✕</button></div></div>`}).join("");
+}
+let delArm=null;
+$("vidList").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.open){V=vids.find(v=>v.id===b.dataset.open);persist();if(prefs.mode==="lines"&&!V.lines.length){prefs.mode="chunks";savePrefs()}tab("practice")}
+  else if(b.dataset.del){
+    if(delArm!==b.dataset.del){delArm=b.dataset.del;b.textContent="Delete?";b.classList.remove("ghost");setTimeout(()=>{if(delArm===b.dataset.del){delArm=null;renderVideos()}},3000);return}
+    vids=vids.filter(v=>v.id!==b.dataset.del);save(KEY,vids);if(V&&V.id===b.dataset.del){V=null;save(CUR,null)}delArm=null;renderVideos();$("nowTitle").textContent=V?"· "+V.title:"";
+  }
+});
+
+// ---------- YouTube player ----------
+let player=null,ready=false,loadedId=null;
+window.onYouTubeIframeAPIReady=()=>ensurePlayer();
+(function(){const s=document.createElement("script");s.src="https://www.youtube.com/iframe_api";s.onerror=()=>setStatus("Couldn't reach YouTube. Check your connection.",true);document.head.appendChild(s)})();
+function ensurePlayer(){
+  if(!window.YT||!YT.Player||!V)return;
+  if(player){if(ready&&loadedId!==V.id){loadedId=V.id;player.cueVideoById(V.id)}return}
+  loadedId=V.id;
+  player=new YT.Player("player",{videoId:V.id,
+    playerVars:{playsinline:1,rel:0,modestbranding:1,cc_load_policy:prefs.cc==="on"?1:0,cc_lang_pref:"en",hl:"en",origin:location.origin},
+    events:{
+      onReady:()=>{ready=true;applyCC();grabTitle()},
+      onStateChange:e=>{if(e.data===1||e.data===5)grabTitle()},
+      onError:e=>{const m={2:"That video link isn't valid.",100:"This video is private or was removed.",101:"The owner doesn't allow this video to play outside YouTube.",150:"The owner doesn't allow this video to play outside YouTube.",153:"YouTube refused to load here. Open this page from its web address, not as a file."};setStatus(m[e.data]||"YouTube player error "+e.data,true)}
+    }});
+}
+function grabTitle(){try{const d=player.getVideoData();if(d&&d.title&&V&&d.video_id===V.id&&V.title!==d.title){V.title=d.title;persist();$("nowTitle").textContent="· "+V.title}}catch(e){}}
+function applyCC(){if(!ready)return;try{if(prefs.cc==="on"){player.loadModule("captions");player.setOption("captions","track",{languageCode:"en"})}else{player.unloadModule("captions")}}catch(e){}}
+
+// ---------- playback engine ----------
+let token=0,mon=null,gapT=null,busy=false,activeBtn=null;
+function setStatus(t,err,turn){const s=$("status");s.textContent=t||"";s.classList.toggle("err",!!err);s.classList.toggle("turn",!!turn)}
+function setBusy(b,btn){busy=b;if(activeBtn)activeBtn.textContent=activeBtn.dataset.label||"▶ Play";if(b&&btn){activeBtn=btn;btn.dataset.label=btn.dataset.label||btn.textContent;btn.textContent="■ Stop"}else activeBtn=null}
+function stopAll(){token++;clearInterval(mon);clearTimeout(gapT);try{if(ready)player.pauseVideo()}catch(e){}setBusy(false);document.querySelectorAll("#lineText .w.on").forEach(w=>w.classList.remove("on"))}
+function playRange(s,e,opt){
+  opt=opt||{};
+  if(!ready){setStatus("The video is still loading…",true);return Promise.resolve()}
+  stopAll();const my=++token;setBusy(true,opt.btn);
+  const loops=opt.once?1:Number(prefs.loops),rate=Number(prefs.rate);let n=0;
+  const spans=opt.words||[];
+  return new Promise(res=>{
+    const once=()=>{
+      if(my!==token)return res();
+      n++;setStatus(opt.once?"Original…":loops===0?`Listen · round ${n}`:`Listen · round ${n} of ${loops}`);
+      try{player.setPlaybackRate(rate)}catch(_){}
+      player.seekTo(s,true);player.playVideo();
+      let started=false;const t0=Date.now();clearInterval(mon);
+      mon=setInterval(()=>{
+        if(my!==token){clearInterval(mon);return}
+        const cur=player.getCurrentTime(),st=player.getPlayerState();
+        if(!started){if(cur>=s-0.4&&cur<e-0.05&&st===1)started=true;else{if(Date.now()-t0>5000){clearInterval(mon);setBusy(false);setStatus("Tap the video once, then try again. iPhone needs one direct tap first.",true);res()}return}}
+        if(spans.length){const k=Math.floor((cur-s)/Math.max(.3,e-s)*spans.length);spans.forEach((w,i)=>w.classList.toggle("on",i===k))}
+        if(cur>=e||st===0){
+          clearInterval(mon);player.pauseVideo();spans.forEach(w=>w.classList.remove("on"));
+          if(loops!==0&&n>=loops){setBusy(false);if(!opt.once)setStatus("Your turn: say it, then tap +1 rep.",false,true);return res()}
+          setStatus("Your turn · shadow it now",false,true);
+          gapT=setTimeout(once,Math.max(600,(e-s)/rate*1000*Number(prefs.gap)));
+        }
+      },40);
+    };
+    once();
+  });
+}
+function currentRange(){
+  if(prefs.mode==="chunks"){const c=V.chunk,s=c.offset+c.idx*c.len;return{s:Math.max(0,s),e:s+c.len,key:"c"+c.idx}}
+  if(prefs.mode==="phrases"){const p=V.phrases[V.pIdx|0];return p?{s:p.s,e:p.e,key:"p"}:null}
+  const l=V.lines[V.lineIdx];if(!l)return null;
+  const nx=V.lines[V.lineIdx+1];const dur=ready?player.getDuration():0;
+  return{s:Math.max(0,l.t-0.2),e:(nx?nx.t:(dur>l.t?dur:l.t+5))+0.3,key:"l"};
+}
+
+// ---------- practice render ----------
+function renderPractice(){
+  ensurePlayer();
+  $("modeLines").hidden=!V.lines.length;
+  if(prefs.mode==="lines"&&!V.lines.length)prefs.mode="chunks";
+  document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===prefs.mode?"true":"false"));
+  for(const m of["chunks","phrases","lines"])$("m-"+m).hidden=m!==prefs.mode;
+  $("rate").value=String(prefs.rate);$("loops").value=String(prefs.loops);$("gap").value=String(prefs.gap);$("cc").value=prefs.cc;
+  if(prefs.mode==="chunks"){const c=V.chunk,s=Math.max(0,c.offset+c.idx*c.len);$("chunkName").textContent="Chunk "+(c.idx+1);$("chunkTime").textContent=fmt(s)+"–"+fmt(s+c.len);$("chunkLen").value=String(c.len)}
+  if(prefs.mode==="phrases")renderPhrases();
+  if(prefs.mode==="lines")renderLines();
+  renderReps();renderRec();
+}
+function repCount(){
+  if(prefs.mode==="chunks")return(V.chunkReps||{})[V.chunk.idx]||0;
+  if(prefs.mode==="phrases"){const p=V.phrases[V.pIdx|0];return p?p.reps||0:0}
+  const l=V.lines[V.lineIdx];return l?l.reps||0:0;
+}
+function renderReps(){const n=repCount(),d=$("dots");d.innerHTML="";for(let i=0;i<3;i++){const s=document.createElement("span");s.className="dot"+(i<n?" f":"");d.appendChild(s)}if(n>3){const s=document.createElement("span");s.className="note";s.textContent="+"+(n-3);d.appendChild(s)}}
+$("btnRep").addEventListener("click",()=>{
+  if(prefs.mode==="chunks"){V.chunkReps=V.chunkReps||{};V.chunkReps[V.chunk.idx]=(V.chunkReps[V.chunk.idx]||0)+1}
+  else if(prefs.mode==="phrases"){const p=V.phrases[V.pIdx|0];if(!p)return;p.reps=(p.reps||0)+1}
+  else{const l=V.lines[V.lineIdx];if(!l)return;l.reps=(l.reps||0)+1}
+  persist();renderReps();if(prefs.mode==="phrases")renderPhrases();if(prefs.mode==="lines")renderLines();
+});
+document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>{stopAll();prefs.mode=b.dataset.mode;savePrefs();setStatus("");renderPractice()}));
+// chunks
+const playCurrent=btn=>{if(busy){stopAll();setStatus("");return}const r=currentRange();if(!r){setStatus("Nothing selected yet.",true);return}playRange(r.s,r.e,{btn,words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]})};
+$("cPlay").addEventListener("click",()=>playCurrent($("cPlay")));
+const chunkMove=d=>{stopAll();V.chunk.idx=Math.max(0,V.chunk.idx+d);persist();renderPractice();setStatus("")};
+$("cPrev").addEventListener("click",()=>chunkMove(-1));
+$("cNext").addEventListener("click",()=>chunkMove(1));
+document.querySelectorAll("[data-shift]").forEach(b=>b.addEventListener("click",()=>{V.chunk.offset=Math.round((V.chunk.offset+Number(b.dataset.shift))*10)/10;persist();renderPractice();playCurrent($("cPlay"))}));
+$("chunkLen").addEventListener("change",e=>{const c=V.chunk,start=c.offset+c.idx*c.len;c.len=Number(e.target.value);c.idx=Math.max(0,Math.floor((start-c.offset)/c.len));persist();renderPractice()});
+$("cSave").addEventListener("click",()=>{const r=currentRange();V.phrases.push({s:r.s,e:r.e,reps:0,at:Date.now()});V.pIdx=V.phrases.length-1;persist();setStatus("Saved to My phrases.")});
+// phrases
+$("grabSel").value=String(prefs.grab);$("grabLen").textContent=prefs.grab;
+$("grabSel").addEventListener("change",e=>{prefs.grab=Number(e.target.value);$("grabLen").textContent=prefs.grab;savePrefs()});
+$("pGrab").addEventListener("click",()=>{
+  if(!ready){setStatus("The video is still loading…",true);return}
+  const cur=player.getCurrentTime();if(cur<0.5){setStatus("Play the video first, then tap Grab right after the phrase.",true);return}
+  const e=Math.round(cur*10)/10,s=Math.max(0,Math.round((cur-prefs.grab)*10)/10);
+  V.phrases.push({s,e,reps:0,at:Date.now()});V.pIdx=V.phrases.length-1;persist();renderPractice();playCurrent($("pPlay"));
+});
+document.querySelectorAll("[data-pe]").forEach(b=>b.addEventListener("click",()=>{const p=V.phrases[V.pIdx|0];if(!p)return;const[k,d]=b.dataset.pe.split(":");p[k]=Math.max(0,Math.round((p[k]+Number(d))*10)/10);if(p.e-p.s<0.5)p.e=p.s+0.5;persist();renderPhrases();playCurrent($("pPlay"))}));
+$("pPlay").addEventListener("click",()=>playCurrent($("pPlay")));
+function renderPhrases(){
+  const has=V.phrases.length>0;$("pEdit").hidden=!has;
+  if(V.pIdx==null||V.pIdx>=V.phrases.length)V.pIdx=V.phrases.length-1;
+  const p=V.phrases[V.pIdx|0];if(p)$("pTime").textContent=fmt(p.s)+"–"+fmt(p.e);
+  $("phraseList").innerHTML=has?V.phrases.map((p,i)=>`<div class="phrase" aria-current="${i===V.pIdx}"><button class="btn sm" data-pp="${i}" aria-label="Play">▶</button><button class="btn ghost sm" data-ps="${i}" style="justify-content:flex-start"><span class="time">${fmt(p.s)}–${fmt(p.e)}</span></button><span class="row" style="gap:4px;flex-wrap:nowrap"><span class="r">${p.reps?p.reps+"×":""}</span><button class="btn ghost sm" data-pd="${i}" aria-label="Delete phrase">✕</button></span></div>`).join(""):'<p class="note" style="margin:0">No phrases yet.</p>';
+}
+$("phraseList").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.pp!=null){V.pIdx=Number(b.dataset.pp);persist();renderPractice();playCurrent($("pPlay"))}
+  else if(b.dataset.ps!=null){V.pIdx=Number(b.dataset.ps);persist();renderPractice()}
+  else if(b.dataset.pd!=null){stopAll();V.phrases.splice(Number(b.dataset.pd),1);persist();renderPractice()}});
+// lines
+function renderLines(){
+  const l=V.lines[V.lineIdx];if(!l)return;
+  $("lineName").textContent=`Line ${V.lineIdx+1} of ${V.lines.length}`;$("lineTime").textContent=fmtI(l.t);
+  const el=$("lineText");el.className="linetext"+($("lHide").checked?" hidden":"");
+  el.innerHTML=l.text.split(/\s+/).map(w=>`<span class="w">${esc(w)}</span>`).join(" ");
+  const list=$("lineList");
+  list.innerHTML=V.lines.map((x,i)=>`<button data-li="${i}" aria-current="${i===V.lineIdx}"><span class="ts">${fmtI(x.t)}</span><span class="t">${esc(x.text)}</span><span class="ts">${x.reps?x.reps+"×":""}</span></button>`).join("");
+  const cur=list.querySelector('[aria-current="true"]');if(cur)list.scrollTop=cur.offsetTop-list.clientHeight/3;
+}
+$("lineList").addEventListener("click",e=>{const b=e.target.closest("button[data-li]");if(!b)return;stopAll();V.lineIdx=Number(b.dataset.li);persist();renderPractice()});
+$("lPlay").addEventListener("click",()=>playCurrent($("lPlay")));
+$("lPrev").addEventListener("click",()=>{stopAll();V.lineIdx=Math.max(0,V.lineIdx-1);persist();renderPractice()});
+$("lNext").addEventListener("click",()=>{stopAll();V.lineIdx=Math.min(V.lines.length-1,V.lineIdx+1);persist();renderPractice()});
+$("lHide").addEventListener("change",renderLines);
+// settings
+$("rate").addEventListener("change",e=>{prefs.rate=Number(e.target.value);savePrefs();try{player.setPlaybackRate(prefs.rate)}catch(_){}});
+$("loops").addEventListener("change",e=>{prefs.loops=Number(e.target.value);savePrefs()});
+$("gap").addEventListener("change",e=>{prefs.gap=Number(e.target.value);savePrefs()});
+$("cc").addEventListener("change",e=>{prefs.cc=e.target.value;savePrefs();applyCC()});
+$("toSummary").addEventListener("click",()=>tab("summary"));
+
+// ---------- recording ----------
+let mrec=null,chunks=[],stream=null,mineUrl=null,mineKey=null;
+const aud=new Audio();aud.setAttribute("playsinline","");
+function recKey(){const r=currentRange();return r?prefs.mode+":"+r.s+":"+r.e:""}
+function renderRec(){const ok=!!mineUrl&&mineKey===recKey();$("btnMine").disabled=!ok;$("btnCompare").disabled=!ok}
+$("btnRec").addEventListener("click",async()=>{
+  if(mrec&&mrec.state==="recording"){mrec.stop();return}
+  if(!navigator.mediaDevices||!window.MediaRecorder){$("recNote").textContent="Recording isn't supported on this browser.";return}
+  try{stream=stream||await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){$("recNote").textContent="Microphone access was blocked. Allow it in Settings to record.";return}
+  stopAll();chunks=[];const key=recKey();
+  mrec=new MediaRecorder(stream);
+  mrec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
+  mrec.onstop=()=>{if(mineUrl)URL.revokeObjectURL(mineUrl);mineUrl=URL.createObjectURL(new Blob(chunks,{type:mrec.mimeType||"audio/mp4"}));mineKey=key;
+    $("btnRec").setAttribute("aria-pressed","false");$("btnRec").textContent="● Record";$("recNote").textContent="Recorded. It's kept until you change clips or close the app.";renderRec()};
+  mrec.start();$("btnRec").setAttribute("aria-pressed","true");$("btnRec").textContent="■ Stop";$("recNote").textContent="Recording… say the clip, then tap Stop.";
+});
+const playMine=()=>new Promise(r=>{if(!mineUrl)return r();aud.src=mineUrl;aud.onended=r;aud.onerror=r;aud.play().catch(r)});
+$("btnMine").addEventListener("click",()=>{stopAll();playMine()});
+$("btnCompare").addEventListener("click",async()=>{const r=currentRange();if(!r)return;await playRange(r.s,r.e,{once:true});await new Promise(x=>setTimeout(x,300));setStatus("Now yours…");await playMine();setStatus("")});
+
+// ---------- summary ----------
+const words=s=>(s.toLowerCase().match(/[a-z0-9']+/g)||[]);
+function copiedAnalysis(sum){
+  const tw=words(V.lines.map(l=>l.text).join(" ")),N=5,g=new Set();for(let i=0;i+N<=tw.length;i++)g.add(tw.slice(i,i+N).join(" "));
+  const toks=[];const re=/[A-Za-z0-9']+/g;let m;while((m=re.exec(sum)))toks.push({w:m[0].toLowerCase(),s:m.index,e:m.index+m[0].length});
+  const f=new Array(toks.length).fill(false);for(let i=0;i+N<=toks.length;i++)if(g.has(toks.slice(i,i+N).map(t=>t.w).join(" ")))for(let k=i;k<i+N;k++)f[k]=true;
+  let h="",p=0,o=false;toks.forEach((t,i)=>{h+=esc(sum.slice(p,t.s));if(f[i]&&!o){h+="<mark>";o=true}h+=esc(sum.slice(t.s,t.e));if(o&&!f[i+1]){h+="</mark>";o=false}p=t.e});if(o)h+="</mark>";h+=esc(sum.slice(p));
+  return{h,pct:toks.length?Math.round(100*f.filter(Boolean).length/toks.length):0};
+}
+function meters(){
+  const sum=$("summary").value,n=words(sum).length,t=Number($("target").value);
+  $("wc").textContent=`${n} / ${t} words`;$("wcBar").style.width=Math.min(100,100*n/t)+"%";
+  const hasT=V.lines.length>0;$("copiedWrap").hidden=!hasT;
+  if(hasT){const a=copiedAnalysis(sum);$("copyPct").textContent=`Copied: ${a.pct}%`;$("copyPct").style.color=a.pct>25?"var(--bad)":a.pct>10?"var(--warn)":"";$("copiedView").innerHTML=a.h||'<span class="note">Nothing yet.</span>'}else $("copyPct").textContent="";
+}
+function renderSummary(){$("sumHeading").textContent=V.title?`What was “${V.title}” about?`:"What was the video about?";$("summary").value=V.summary||"";$("target").value=String(V.target||120);meters()}
+let st;$("summary").addEventListener("input",()=>{V.summary=$("summary").value;clearTimeout(st);st=setTimeout(()=>{persist();meters()},250)});
+$("target").addEventListener("change",()=>{V.target=Number($("target").value);persist();meters()});
+$("btnCopy").addEventListener("click",async()=>{
+  const sum=$("summary").value.trim();if(words(sum).length<15){$("copyNote").textContent="Write a few sentences first.";return}
+  const link="https://www.youtube.com/watch?v="+V.id;
+  let tr=V.lines.length?V.lines.map(l=>"["+fmtI(l.t)+"] "+l.text).join("\n"):"";if(tr.length>60000)tr=tr.slice(0,60000)+"\n[truncated]";
+  const prompt=`You are my English coach. I'm an advanced adult learner, a professional and non-native speaker. I watched a YouTube video, practiced it by shadowing, then wrote this summary from memory in my own words.
+
+Please give me:
+1. Scores from 1 to 5 for ${tr?"coverage of the main points, accuracy, ":""}use of my own words and language quality, with one line on each.
+${tr?"2. Key points I missed and anything I got wrong.\n":""}${tr?"3":"2"}. Corrections: quote my exact phrase, give a better version, and say why in a few words.
+${tr?"4":"3"}. A polished version of my summary in natural, fluent English that keeps my ideas and roughly my length.
+${tr?"5. 3 to 5 useful expressions from the video worth learning, with their meaning.":"4. 3 to 5 more natural or advanced expressions I could have used."}
+
+Video: ${V.title||"(untitled)"} ${link}
+${tr?"\nTRANSCRIPT (auto-generated captions, may contain errors):\n"+tr+"\n":""}
+MY SUMMARY (target about ${V.target||120} words):
+${sum}`;
+  try{await navigator.clipboard.writeText(prompt);$("copyNote").textContent="Copied. Open the Claude app and paste."}
+  catch(e){$("copyNote").textContent="Copy was blocked. Try again."}
+});
+
+// ---------- boot ----------
+const p=new URLSearchParams(location.search);const qv=videoIdFrom(p.get("v")||p.get("url")||"");
+if(qv){$("inUrl").value="https://youtu.be/"+qv;tab("videos")}
+else tab(V?"practice":"videos");
+})();
+</script>
+</body>
+</html>
