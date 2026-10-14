@@ -200,39 +200,27 @@ ol.steps li{margin-bottom:6px}
         <button data-mode="lines" id="modeLines">Lines</button>
       </div>
 
-      <!-- sentences: marking -->
-      <div class="card stack" id="m-mark" hidden>
-        <div>
-          <div class="eyebrow">Step 1 · Mark the sentences</div>
-          <p style="margin:6px 0 0">Listen once. Every time the speaker finishes a sentence, tap <b>Sentence ended</b>. Each tap becomes one practice clip.</p>
-        </div>
-        <button class="btn repc huge" id="mkEnd" disabled>⏎ Sentence ended <kbd>M</kbd></button>
-        <div class="row" style="flex-wrap:nowrap">
-          <button class="btn primary" id="mkPlay" style="flex:1">▶ Start listening</button>
-          <button class="btn" id="mkUndo" disabled>↶ Undo</button>
-        </div>
-        <div class="row" style="justify-content:space-between">
-          <span class="note" id="mkInfo">No sentences yet.</span>
-          <button class="btn sm" id="mkDone" hidden>Done → practice</button>
-        </div>
-        <p class="note" style="margin:0">Tip: a slower speed (Settings) makes marking easier. You can fix any clip edge afterwards.</p>
-      </div>
-
-      <!-- sentences: practice -->
+      <!-- sentences: mark as you go -->
       <div class="card stack" id="m-sent" hidden>
         <div class="seg-title"><b id="sName">Sentence 1</b><span class="time" id="sTime"></span></div>
-        <div class="nudge">
-          <button class="btn" data-sn="s:-0.2">Start −</button>
-          <button class="btn" data-sn="s:0.2">Start +</button>
-          <button class="btn" data-sn="e:-0.2">End −</button>
-          <button class="btn" data-sn="e:0.2">End +</button>
+        <div id="sNew" class="stack" hidden>
+          <p class="note" style="margin:0" id="sNewText">Tap Listen. The moment the speaker finishes this sentence, tap Sentence ended. The sentence then loops for you to shadow.</p>
+          <button class="btn repc huge" id="mkEnd" disabled>⏎ Sentence ended <kbd>M</kbd></button>
         </div>
-        <div class="row">
-          <button class="btn sm" id="sMore">+ Mark more sentences</button>
-          <button class="btn sm ghost" id="sMerge">Join with next</button>
-          <button class="btn sm ghost" id="sReset">Start over</button>
+        <div id="sEdit" class="stack">
+          <div class="nudge">
+            <button class="btn" data-sn="s:-0.2">Start −</button>
+            <button class="btn" data-sn="s:0.2">Start +</button>
+            <button class="btn" data-sn="e:-0.2">End −</button>
+            <button class="btn" data-sn="e:0.2">End +</button>
+          </div>
+          <div class="row">
+            <button class="btn sm" id="sRemark">↺ Re-mark the end</button>
+            <button class="btn sm ghost" id="sMerge">Join with next</button>
+            <button class="btn sm ghost" id="sReset">Start over</button>
+          </div>
+          <div class="confirmrow" id="sResetConfirm" hidden>Delete all sentence marks for this video? <button class="btn sm" id="sResetYes">Delete</button><button class="btn sm ghost" id="sResetNo">Keep</button></div>
         </div>
-        <div class="confirmrow" id="sResetConfirm" hidden>Delete all sentence marks for this video? <button class="btn sm" id="sResetYes">Delete</button><button class="btn sm ghost" id="sResetNo">Keep</button></div>
       </div>
 
       <!-- grab -->
@@ -298,6 +286,7 @@ ol.steps li{margin-bottom:6px}
       <button class="btn" id="toSummary">Done → write my summary</button>
     </div>
   </section>
+
   <!-- SUMMARY -->
   <section id="t-summary" class="stack" hidden>
     <div class="card stack">
@@ -422,7 +411,7 @@ function ensurePlayer(){
     playerVars:{playsinline:1,rel:0,modestbranding:1,cc_load_policy:prefs.cc==="on"?1:0,cc_lang_pref:"en",hl:"en",origin:location.origin},
     events:{
       onReady:()=>{ready=true;applyCC();grabTitle()},
-      onStateChange:e=>{if(e.data===1||e.data===5)grabTitle();if(marking)renderMark()},
+      onStateChange:e=>{if(e.data===1||e.data===5)grabTitle();if(marking)renderListenUI()},
       onError:e=>{const m={2:"That video link isn't valid.",100:"This video is private or was removed.",101:"The owner doesn't allow this video to play outside YouTube.",150:"The owner doesn't allow this video to play outside YouTube.",153:"YouTube refused to load here. Open this page from its web address, not as a file."};setStatus(m[e.data]||"YouTube player error "+e.data,true)}
     }});
 }
@@ -470,67 +459,62 @@ function playRange(s,e,opt){
 const sentCount=()=>V.marks.length;
 function sentBounds(i){const s=i>0?V.marks[i-1]:(V.firstStart||0);return{s,e:V.marks[i]}}
 function currentRange(){
-  if(prefs.mode==="sent"){if(!sentCount())return null;const b=sentBounds(V.sIdx);return{s:Math.max(0,b.s-0.1),e:b.e+0.15}}
+  if(prefs.mode==="sent"){if(isNew())return null;const b=sentBounds(V.sIdx);return{s:Math.max(0,b.s-0.1),e:b.e+0.15}}
   if(prefs.mode==="grab"){const p=V.phrases[V.pIdx|0];return p?{s:p.s,e:p.e}:null}
   const l=V.lines[V.lineIdx];if(!l)return null;
   const nx=V.lines[V.lineIdx+1];const dur=ready?player.getDuration():0;
   return{s:Math.max(0,l.t-0.2),e:(nx?nx.t:(dur>l.t?dur:l.t+5))+0.3};
 }
 
-// ---------- marking ----------
-let marking=false,markTimer=null;
+// ---------- marking, one sentence at a time ----------
+// The current sentence is "new" when it has no end mark yet (sIdx === number of marks),
+// or when the user chose to re-mark its end. Listen plays from its start; tapping
+// Sentence ended saves the end and the sentence starts looping right away.
+let marking=false,markTimer=null,remark=false;
 const REACT=0.25; // typical tap delay after the sentence actually ends
-function startMarking(){
+const isNew=()=>prefs.mode==="sent"&&(remark||V.sIdx>=sentCount());
+function startListening(){
+  if(!ready){setStatus("The video is still loading…",true);return}
   stopAll();marking=true;
-  if(!ready){setStatus("The video is still loading…",true);marking=false;return}
-  const from=sentCount()?V.marks[V.marks.length-1]:(V.firstStart||0);
+  const from=sentBounds(V.sIdx).s;
   try{player.setPlaybackRate(Number(prefs.rate))}catch(_){}
-  player.seekTo(Math.max(0,from-0.3),true);player.playVideo();
-  clearInterval(markTimer);markTimer=setInterval(renderMarkInfo,300);
+  player.seekTo(Math.max(0,from-0.2),true);player.playVideo();
+  clearInterval(markTimer);
+  markTimer=setInterval(()=>{
+    if(!marking)return;
+    const st=player.getPlayerState();
+    if(st===0){stopMarking();setStatus("Reached the end of the video.",false);renderPractice();return}
+    setStatus(`Listening · ${fmtI(player.getCurrentTime())} · tap Sentence ended when it finishes`);
+    renderListenUI();
+  },250);
   renderPractice();
 }
 function stopMarking(){if(!marking)return;marking=false;clearInterval(markTimer);try{if(ready)player.pauseVideo()}catch(e){}}
 function addMark(){
-  if(!ready)return;
-  if(!isPlaying()){setStatus("Start listening first.",true);return}
-  const t=r1(Math.max(0,player.getCurrentTime()-REACT*Number(prefs.rate)));
-  const last=sentCount()?V.marks[V.marks.length-1]:(V.firstStart||0);
-  if(t<=last+0.5){setStatus("Too close to the last mark. Ignored.",true);return}
-  V.marks.push(t);persist();setStatus(`Sentence ${sentCount()} marked at ${fmt(t)}.`);renderMark();
+  if(!ready||!isNew())return;
+  if(!(marking&&isPlaying())){setStatus("Tap Listen first.",true);return}
+  const i=V.sIdx,t=r1(Math.max(0,player.getCurrentTime()-REACT*Number(prefs.rate)));
+  const lo=sentBounds(i).s+0.5;
+  if(t<lo){setStatus("That's too soon after the sentence started. Keep listening.",true);return}
+  if(remark){const hi=i+1<sentCount()?V.marks[i+1]-0.4:1e9;V.marks[i]=Math.min(hi,t);remark=false}
+  else V.marks.push(t);
+  persist();stopMarking();
   const b=$("mkEnd");b.classList.add("flash");setTimeout(()=>b.classList.remove("flash"),180);
+  renderPractice();
+  setTimeout(()=>playCurrent(),250); // start shadowing this sentence right away
 }
-function undoMark(){
-  if(!sentCount())return;
-  V.marks.pop();persist();
-  const back=sentCount()?V.marks[V.marks.length-1]:(V.firstStart||0);
-  if(ready){player.seekTo(Math.max(0,back-0.3),true)}
-  setStatus("Removed the last mark. Listening again from the previous sentence.");renderMark();
+function renderListenUI(){
+  if(!isNew())return;
+  const listening=marking&&isPlaying();
+  $("mkEnd").disabled=!listening;
+  $("tPlay").innerHTML=(listening?"❚❚ Pause":"▶ Listen")+" <kbd>Space</kbd>";
 }
-function renderMarkInfo(){
-  const n=sentCount(),cur=ready?player.getCurrentTime():0;
-  $("mkInfo").textContent=n?`${n} sentence${n>1?"s":""} marked · now at ${fmtI(cur)}`:(ready&&cur>0?`Listening · ${fmtI(cur)}`:"No sentences yet.");
-}
-function renderMark(){
-  const playing=marking&&isPlaying();
-  $("mkPlay").textContent=playing?"❚❚ Pause":(sentCount()?"▶ Continue listening":"▶ Start listening");
-  $("mkEnd").disabled=!playing;
-  $("mkUndo").disabled=!sentCount();
-  $("mkDone").hidden=!sentCount();
-  renderMarkInfo();
-}
-$("mkPlay").addEventListener("click",()=>{
-  if(marking&&isPlaying()){player.pauseVideo();setTimeout(renderMark,150);return}
-  if(marking&&ready){player.playVideo();setTimeout(renderMark,300);return}
-  startMarking();
-});
 $("mkEnd").addEventListener("click",addMark);
-$("mkUndo").addEventListener("click",undoMark);
-$("mkDone").addEventListener("click",()=>{stopMarking();V.sIdx=0;persist();setStatus("");renderPractice()});
-$("sMore").addEventListener("click",()=>{V.sIdx=Math.max(0,sentCount()-1);startMarking()});
-$("sMerge").addEventListener("click",()=>{if(V.sIdx>=sentCount()-1){setStatus("This is the last sentence.",true);return}V.marks.splice(V.sIdx,1);persist();renderPractice();setStatus("Joined with the next sentence.")});
+$("sRemark").addEventListener("click",()=>{remark=true;renderPractice();startListening()});
+$("sMerge").addEventListener("click",()=>{if(V.sIdx>=sentCount()-1){setStatus("There's no marked sentence after this one yet.",true);return}V.marks.splice(V.sIdx,1);persist();renderPractice();setStatus("Joined with the next sentence.")});
 $("sReset").addEventListener("click",()=>{$("sResetConfirm").hidden=false});
 $("sResetNo").addEventListener("click",()=>{$("sResetConfirm").hidden=true});
-$("sResetYes").addEventListener("click",()=>{V.marks=[];V.sIdx=0;V.sReps={};V.firstStart=0;persist();$("sResetConfirm").hidden=true;renderPractice()});
+$("sResetYes").addEventListener("click",()=>{stopMarking();remark=false;V.marks=[];V.sIdx=0;V.sReps={};V.firstStart=0;persist();$("sResetConfirm").hidden=true;renderPractice()});
 document.querySelectorAll("[data-sn]").forEach(b=>b.addEventListener("click",()=>{
   const[k,d]=b.dataset.sn.split(":");const dv=Number(d),i=V.sIdx;
   if(k==="e"){const lo=sentBounds(i).s+0.4,hi=i+1<sentCount()?V.marks[i+1]-0.4:1e9;V.marks[i]=r1(Math.min(hi,Math.max(lo,V.marks[i]+dv)))}
@@ -544,17 +528,29 @@ function renderPractice(){
   $("modeLines").hidden=!V.lines.length;
   if(prefs.mode==="lines"&&!V.lines.length)prefs.mode="sent";
   document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===prefs.mode?"true":"false"));
-  const showMark=prefs.mode==="sent"&&(marking||!sentCount());
-  $("m-mark").hidden=!showMark;
-  $("m-sent").hidden=!(prefs.mode==="sent"&&!showMark);
+  $("m-sent").hidden=prefs.mode!=="sent";
   $("m-grab").hidden=prefs.mode!=="grab";
   $("m-lines").hidden=prefs.mode!=="lines";
-  $("transport").hidden=showMark;
   $("rate").value=String(prefs.rate);$("loops").value=String(prefs.loops);$("gap").value=String(prefs.gap);$("cc").value=prefs.cc;
-  if(showMark)renderMark();
-  else if(prefs.mode==="sent"){V.sIdx=Math.min(V.sIdx,sentCount()-1);const b=sentBounds(V.sIdx);$("sName").textContent=`Sentence ${V.sIdx+1} of ${sentCount()}`;$("sTime").textContent=fmt(b.s)+"–"+fmt(b.e)}
+  const fresh=isNew();
+  if(prefs.mode==="sent"){
+    V.sIdx=Math.max(0,Math.min(V.sIdx,sentCount()));
+    const n=sentCount(),b=sentBounds(V.sIdx);
+    $("sNew").hidden=!fresh;$("sEdit").hidden=fresh;
+    if(fresh){
+      $("sName").textContent=remark?`Sentence ${V.sIdx+1} · re-marking the end`:`Sentence ${V.sIdx+1} · new`;
+      $("sTime").textContent="from "+fmt(b.s);
+      $("sNewText").textContent=V.sIdx===0&&!n?"Tap Listen. The moment the speaker finishes the first sentence, tap Sentence ended. That sentence then loops for you to shadow, and Next › moves on to the following one.":"Tap Listen. The moment the speaker finishes this sentence, tap Sentence ended. It then loops for you to shadow.";
+    }else{
+      $("sName").textContent=`Sentence ${V.sIdx+1} of ${n}`;$("sTime").textContent=fmt(b.s)+"–"+fmt(b.e);
+    }
+  }
   if(prefs.mode==="grab")renderPhrases();
   if(prefs.mode==="lines")renderLines();
+  // transport
+  for(const id of["btnRec","btnRep"])$(id).disabled=fresh;
+  $("tNext").disabled=fresh;
+  if(fresh)renderListenUI();else if(!busy)$("tPlay").innerHTML="▶ Play <kbd>Space</kbd>";
   renderReps();renderRec();
 }
 function repCount(){
@@ -570,12 +566,17 @@ function addRep(){
   persist();renderReps();if(prefs.mode==="grab")renderPhrases();if(prefs.mode==="lines")renderLines();
 }
 $("btnRep").addEventListener("click",addRep);
-document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>{stopAll();stopMarking();prefs.mode=b.dataset.mode;savePrefs();setStatus("");renderPractice()}));
+document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>{stopAll();stopMarking();remark=false;prefs.mode=b.dataset.mode;savePrefs();setStatus("");renderPractice()}));
 function playCurrent(o){if(busy&&!(o&&o.once)){stopAll();setStatus("");return}const r=currentRange();if(!r){setStatus("Nothing to play yet.",true);return}return playRange(r.s,r.e,Object.assign({words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]},o||{}))}
-$("tPlay").addEventListener("click",()=>playCurrent());
+$("tPlay").addEventListener("click",()=>{if(isNew()){if(marking&&isPlaying()){stopMarking();setStatus("Paused. Listen starts this sentence again from the beginning.");renderPractice()}else startListening();return}playCurrent()});
 function step(d){
   stopAll();setStatus("");
-  if(prefs.mode==="sent"){V.sIdx=Math.max(0,Math.min(sentCount()-1,V.sIdx+d))}
+  if(prefs.mode==="sent"){
+    stopMarking();remark=false;
+    V.sIdx=Math.max(0,Math.min(sentCount(),V.sIdx+d));persist();renderPractice();
+    if(d>0&&isNew())startListening(); // moving past the last marked sentence: listen to the next one right away
+    return;
+  }
   else if(prefs.mode==="grab"){if(!V.phrases.length)return;V.pIdx=Math.max(0,Math.min(V.phrases.length-1,(V.pIdx|0)+d))}
   else{V.lineIdx=Math.max(0,Math.min(V.lines.length-1,V.lineIdx+d))}
   persist();renderPractice();
@@ -647,13 +648,13 @@ document.addEventListener("keydown",e=>{
   const tag=(e.target.tagName||"").toLowerCase();
   if(["input","textarea","select"].includes(tag)||e.metaKey||e.ctrlKey||e.altKey)return;
   const k=e.key.toLowerCase();
-  if(!$("m-mark").hidden){
+  if(isNew()){
     if(k==="m"||e.key==="Enter"){e.preventDefault();addMark()}
-    else if(e.key===" "){e.preventDefault();$("mkPlay").click()}
-    else if(k==="u"||e.key==="Backspace"){e.preventDefault();undoMark()}
+    else if(e.key===" "){e.preventDefault();$("tPlay").click()}
+    else if(e.key==="ArrowLeft"){e.preventDefault();step(-1)}
     return;
   }
-  if(e.key===" "){e.preventDefault();playCurrent()}
+  if(e.key===" "){e.preventDefault();$("tPlay").click()}
   else if(e.key==="ArrowRight"){e.preventDefault();step(1)}
   else if(e.key==="ArrowLeft"){e.preventDefault();step(-1)}
   else if(e.key==="Enter"&&tag!=="button"){e.preventDefault();addRep()}
