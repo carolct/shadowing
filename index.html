@@ -643,6 +643,13 @@ $("btnMine").addEventListener("click",()=>{stopAll();playMine()});
 $("btnCompare").addEventListener("click",async()=>{await playCurrent({once:true});await new Promise(x=>setTimeout(x,300));setStatus("Now yours…");await playMine();setStatus("")});
 
 // ---------- keyboard (Mac) ----------
+// Clicking the video moves keyboard focus into YouTube's iframe, which then swallows every key
+// (and uses Space/M/arrows for its own shortcuts). Pull focus back to the page right away.
+window.addEventListener("blur",()=>{setTimeout(()=>{const a=document.activeElement;if(a&&a.tagName==="IFRAME"&&!$("t-practice").hidden){a.blur();window.focus()}},0)});
+// A settings dropdown keeps focus after you pick a value; release it so shortcuts work again.
+document.querySelectorAll("#t-practice select").forEach(sel=>sel.addEventListener("change",()=>setTimeout(()=>sel.blur(),0)));
+// Space on a focused button would also "click" that button on key-up; stop that double action.
+document.addEventListener("keyup",e=>{if(!$("t-practice").hidden&&e.key===" "&&(e.target.tagName||"").toLowerCase()==="button")e.preventDefault()});
 document.addEventListener("keydown",e=>{
   if($("t-practice").hidden)return;
   const tag=(e.target.tagName||"").toLowerCase();
@@ -657,7 +664,7 @@ document.addEventListener("keydown",e=>{
   if(e.key===" "){e.preventDefault();$("tPlay").click()}
   else if(e.key==="ArrowRight"){e.preventDefault();step(1)}
   else if(e.key==="ArrowLeft"){e.preventDefault();step(-1)}
-  else if(e.key==="Enter"&&tag!=="button"){e.preventDefault();addRep()}
+  else if(e.key==="Enter"){e.preventDefault();addRep()}
   else if(k==="r"){toggleRec()}
 });
 
