@@ -129,6 +129,13 @@ details summary{cursor:pointer;font-weight:700;font-size:15px}
 .lines .ts,.ts{font-family:var(--f-mono);font-size:12px;color:var(--faint)}
 .lines .t{min-width:0;overflow-wrap:anywhere}
 
+.huge{min-height:96px;font-size:22px;border-radius:16px}
+.huge.flash{filter:brightness(1.25);transform:scale(.98)}
+.recrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.recrow .btn{padding:8px 6px;font-size:14px}
+.confirmrow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:14px}
+kbd{font-family:var(--f-mono);font-size:11px;border:1px solid currentColor;border-radius:4px;padding:0 4px;opacity:.6}
+@media (hover:none){kbd{display:none}}
 /* summary */
 .sumbox{font-family:var(--f-read);font-size:19px;line-height:1.55;min-height:240px}
 .meter{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -188,52 +195,61 @@ ol.steps li{margin-bottom:6px}
     </div>
     <div class="stack">
       <div class="modes" role="group" aria-label="Practice mode">
-        <button data-mode="chunks">Chunks</button>
-        <button data-mode="phrases">My phrases</button>
+        <button data-mode="sent">Sentences</button>
+        <button data-mode="grab">Grab</button>
         <button data-mode="lines" id="modeLines">Lines</button>
       </div>
 
-      <!-- chunks -->
-      <div class="card stack" id="m-chunks" hidden>
-        <div class="seg-title"><b id="chunkName">Chunk 1</b><span class="time" id="chunkTime">0:00–0:05</span></div>
-        <div class="bigplay">
-          <button class="btn" id="cPrev" aria-label="Previous chunk">‹</button>
-          <button class="btn primary" id="cPlay">▶ Play</button>
-          <button class="btn" id="cNext" aria-label="Next chunk">›</button>
+      <!-- sentences: marking -->
+      <div class="card stack" id="m-mark" hidden>
+        <div>
+          <div class="eyebrow">Step 1 · Mark the sentences</div>
+          <p style="margin:6px 0 0">Listen once. Every time the speaker finishes a sentence, tap <b>Sentence ended</b>. Each tap becomes one practice clip.</p>
         </div>
-        <div class="nudge">
-          <button class="btn" data-shift="-1">−1s</button>
-          <button class="btn" data-shift="-0.5">−0.5s</button>
-          <button class="btn" data-shift="0.5">+0.5s</button>
-          <button class="btn" data-shift="1">+1s</button>
+        <button class="btn repc huge" id="mkEnd" disabled>⏎ Sentence ended <kbd>M</kbd></button>
+        <div class="row" style="flex-wrap:nowrap">
+          <button class="btn primary" id="mkPlay" style="flex:1">▶ Start listening</button>
+          <button class="btn" id="mkUndo" disabled>↶ Undo</button>
         </div>
         <div class="row" style="justify-content:space-between">
-          <label class="row note" style="gap:6px">Chunk length
-            <select id="chunkLen" style="width:auto;padding:6px 8px">
-              <option value="3">3s</option><option value="4">4s</option><option value="5" selected>5s</option><option value="6">6s</option><option value="8">8s</option>
-            </select>
-          </label>
-          <button class="btn sm" id="cSave">★ Save as phrase</button>
+          <span class="note" id="mkInfo">No sentences yet.</span>
+          <button class="btn sm" id="mkDone" hidden>Done → practice</button>
         </div>
-        <p class="note" style="margin:0">Nudge moves where chunks start so they line up with the speaker's pauses.</p>
+        <p class="note" style="margin:0">Tip: a slower speed (Settings) makes marking easier. You can fix any clip edge afterwards.</p>
       </div>
 
-      <!-- phrases -->
-      <div class="card stack" id="m-phrases" hidden>
-        <p class="note" style="margin:0">Play the video normally. When you hear a phrase you want, tap Grab: it saves the last few seconds and loops them.</p>
+      <!-- sentences: practice -->
+      <div class="card stack" id="m-sent" hidden>
+        <div class="seg-title"><b id="sName">Sentence 1</b><span class="time" id="sTime"></span></div>
+        <div class="nudge">
+          <button class="btn" data-sn="s:-0.2">Start −</button>
+          <button class="btn" data-sn="s:0.2">Start +</button>
+          <button class="btn" data-sn="e:-0.2">End −</button>
+          <button class="btn" data-sn="e:0.2">End +</button>
+        </div>
+        <div class="row">
+          <button class="btn sm" id="sMore">+ Mark more sentences</button>
+          <button class="btn sm ghost" id="sMerge">Join with next</button>
+          <button class="btn sm ghost" id="sReset">Start over</button>
+        </div>
+        <div class="confirmrow" id="sResetConfirm" hidden>Delete all sentence marks for this video? <button class="btn sm" id="sResetYes">Delete</button><button class="btn sm ghost" id="sResetNo">Keep</button></div>
+      </div>
+
+      <!-- grab -->
+      <div class="card stack" id="m-grab" hidden>
+        <p class="note" style="margin:0">Play the video normally. Right after a phrase you like, tap Grab. It saves the last few seconds as a clip.</p>
         <div class="row" style="flex-wrap:nowrap">
           <button class="btn repc" id="pGrab" style="flex:1"><span>↺ Grab last <span id="grabLen">4</span>s</span></button>
           <select id="grabSel" style="width:auto" aria-label="Grab length"><option value="3">3s</option><option value="4" selected>4s</option><option value="6">6s</option><option value="8">8s</option></select>
         </div>
         <div id="pEdit" class="stack" hidden>
-          <div class="seg-title"><b>Selected phrase</b><span class="time" id="pTime"></span></div>
+          <div class="seg-title"><b>Selected clip</b><span class="time" id="pTime"></span></div>
           <div class="nudge">
             <button class="btn" data-pe="s:-0.5">Start −</button>
             <button class="btn" data-pe="s:0.5">Start +</button>
             <button class="btn" data-pe="e:-0.5">End −</button>
             <button class="btn" data-pe="e:0.5">End +</button>
           </div>
-          <button class="btn primary" id="pPlay" style="min-height:56px">▶ Play phrase</button>
         </div>
         <div class="phrases" id="phraseList"></div>
       </div>
@@ -242,29 +258,28 @@ ol.steps li{margin-bottom:6px}
       <div class="card stack" id="m-lines" hidden>
         <div class="seg-title"><b id="lineName">Line 1</b><span class="time" id="lineTime"></span></div>
         <p class="linetext" id="lineText"></p>
-        <div class="bigplay">
-          <button class="btn" id="lPrev" aria-label="Previous line">‹</button>
-          <button class="btn primary" id="lPlay">▶ Play</button>
-          <button class="btn" id="lNext" aria-label="Next line">›</button>
-        </div>
         <label class="switch">Hide the text (shadow from memory)<input type="checkbox" id="lHide"></label>
         <div class="lines" id="lineList"></div>
       </div>
 
-      <div class="status" id="status"></div>
-
-      <div class="card stack">
+      <!-- shared transport: play, record, reps -->
+      <div class="card stack" id="transport">
+        <div class="bigplay">
+          <button class="btn" id="tPrev" aria-label="Previous clip">‹</button>
+          <button class="btn primary" id="tPlay">▶ Play <kbd>Space</kbd></button>
+          <button class="btn" id="tNext" aria-label="Next clip">›</button>
+        </div>
+        <div class="recrow">
+          <button class="btn rec" id="btnRec" aria-pressed="false">● Record <kbd>R</kbd></button>
+          <button class="btn" id="btnMine" disabled>▶ Mine</button>
+          <button class="btn" id="btnCompare" disabled>Original → mine</button>
+        </div>
         <div class="repsrow">
-          <span class="eyebrow" style="min-width:48px">Reps</span>
+          <span class="eyebrow">Reps</span>
           <div class="dots" id="dots"></div>
-          <button class="btn repc sm" id="btnRep">+1 rep</button>
+          <button class="btn repc sm" id="btnRep">+1 rep <kbd>Enter</kbd></button>
         </div>
-        <div class="row">
-          <span class="eyebrow" style="min-width:48px">Voice</span>
-          <button class="btn sm rec" id="btnRec" aria-pressed="false">● Record</button>
-          <button class="btn sm" id="btnMine" disabled>▶ Mine</button>
-          <button class="btn sm" id="btnCompare" disabled>Original → mine</button>
-        </div>
+        <div class="status" id="status"></div>
         <span class="note" id="recNote"></span>
       </div>
 
@@ -277,13 +292,12 @@ ol.steps li{margin-bottom:6px}
             <label>Your turn<select id="gap"><option value="0.75">0.75× clip</option><option value="1" selected>1× clip</option><option value="1.5">1.5× clip</option><option value="2">2× clip</option></select></label>
             <label>Captions<select id="cc"><option value="on" selected>Show</option><option value="off">Hide</option></select></label>
           </div>
-          <p class="note" style="margin:0">If a button doesn't start the video the first time, tap the video once. iPhone needs one direct tap before the buttons can control it.</p>
+          <p class="note" style="margin:0">On iPhone, if a button doesn't start the video the first time, tap the video once. iPhone needs one direct tap before buttons can control it. On a Mac: Space play/stop, ← → move, R record, Enter +1 rep, M mark a sentence.</p>
         </div>
       </details>
       <button class="btn" id="toSummary">Done → write my summary</button>
     </div>
   </section>
-
   <!-- SUMMARY -->
   <section id="t-summary" class="stack" hidden>
     <div class="card stack">
@@ -313,16 +327,19 @@ ol.steps li{margin-bottom:6px}
 "use strict";
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmt=n=>{if(n==null||isNaN(n))return"";n=Math.max(0,n);const m=Math.floor(n/60),s=n-m*60;return m+":"+(s<10?"0":"")+s.toFixed(s%1?1:0)};
+const fmt=n=>{if(n==null||isNaN(n))return"";n=Math.max(0,n);const m=Math.floor(n/60),s=n-m*60;return m+":"+(s<10?"0":"")+s.toFixed(1)};
 const fmtI=n=>{n=Math.floor(Math.max(0,n||0));const h=Math.floor(n/3600),m=Math.floor(n%3600/60),s=n%60;return(h?h+":"+String(m).padStart(2,"0"):m)+":"+String(s).padStart(2,"0")};
+const r1=x=>Math.round(x*10)/10;
 
 // ---------- storage ----------
 const KEY="sm.videos.v1",CUR="sm.current.v1",PREF="sm.prefs.v1";
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-let vids=load(KEY,[]);
+function fixup(v){v.marks=v.marks||[];v.sIdx=v.sIdx|0;v.sReps=v.sReps||{};v.phrases=v.phrases||[];v.lines=v.lines||[];v.lineIdx=v.lineIdx|0;v.target=v.target||120;v.summary=v.summary||"";return v}
+let vids=load(KEY,[]).map(fixup);
 let V=vids.find(v=>v.id===load(CUR,null))||null;
-let prefs=Object.assign({rate:1,loops:3,gap:1,cc:"on",mode:"chunks",grab:4},load(PREF,{}));
+let prefs=Object.assign({rate:1,loops:3,gap:1,cc:"on",mode:"sent",grab:4},load(PREF,{}));
+if(!["sent","grab","lines"].includes(prefs.mode))prefs.mode="sent";
 const savePrefs=()=>save(PREF,prefs);
 function persist(){if(!V)return;V.updated=Date.now();const i=vids.findIndex(v=>v.id===V.id);if(i>=0)vids[i]=V;else vids.unshift(V);save(KEY,vids);save(CUR,V.id)}
 
@@ -344,7 +361,7 @@ function videoIdFrom(u){if(!u)return"";u=u.trim();if(/^[\w-]{11}$/.test(u))retur
 // ---------- tabs ----------
 function tab(name){
   if(name!=="videos"&&!V)name="videos";
-  stopAll();
+  stopAll();stopMarking();
   for(const t of["videos","practice","summary"])$("t-"+t).hidden=t!==name;
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===name?"true":"false"));
   $("nowTitle").textContent=V?"· "+(V.title||"Untitled"):"";
@@ -368,25 +385,25 @@ $("btnLoad").addEventListener("click",()=>{
   showLoadMsg("");
   let v=vids.find(x=>x.id===id);
   const lines=$("inTranscript").value.trim()?parseTranscript($("inTranscript").value):null;
-  if(!v){v={id,title:"",created:Date.now(),updated:Date.now(),chunk:{len:5,offset:0,idx:0},phrases:[],lines:[],lineIdx:0,chunkReps:{},summary:"",target:120}}
+  if(!v)v=fixup({id,title:"",created:Date.now(),updated:Date.now()});
   if(lines&&lines.length){v.lines=lines.map(l=>({t:l.t,text:l.text,reps:0}));v.lineIdx=0}
   V=v;persist();$("inUrl").value="";$("inTranscript").value="";$("parseInfo").textContent="";
-  if(V.lines.length)prefs.mode="lines";else if(prefs.mode==="lines")prefs.mode="chunks";savePrefs();
+  prefs.mode=V.lines.length?"lines":"sent";savePrefs();
   tab("practice");
 });
+function totalReps(v){return Object.values(v.sReps||{}).reduce((a,b)=>a+b,0)+(v.phrases||[]).reduce((a,p)=>a+(p.reps||0),0)+(v.lines||[]).reduce((a,l)=>a+(l.reps||0),0)}
 function renderVideos(){
   const list=$("vidList");
   if(!vids.length){list.innerHTML='<p class="note" style="margin:0">No videos yet. Paste a link above to start.</p>';return}
   list.innerHTML=vids.slice().sort((a,b)=>b.updated-a.updated).map(v=>{
-    const reps=Object.values(v.chunkReps||{}).reduce((a,b)=>a+b,0)+(v.phrases||[]).reduce((a,p)=>a+(p.reps||0),0)+(v.lines||[]).reduce((a,l)=>a+(l.reps||0),0);
     const wc=(v.summary||"").trim().split(/\s+/).filter(Boolean).length;
-    return `<div class="vid"><div style="min-width:0"><b>${esc(v.title||"YouTube "+v.id)}</b><div class="m">${reps} reps · ${(v.phrases||[]).length} phrases${wc>=15?' · <span class="pill ok">Summary</span>':""}</div></div>
+    return `<div class="vid"><div style="min-width:0"><b>${esc(v.title||"YouTube "+v.id)}</b><div class="m">${v.marks.length} sentences · ${totalReps(v)} reps${wc>=15?' · <span class="pill ok">Summary</span>':""}</div></div>
     <div class="row" style="gap:4px;flex-wrap:nowrap"><button class="btn sm primary" data-open="${esc(v.id)}">Open</button><button class="btn sm ghost" data-del="${esc(v.id)}" aria-label="Delete">✕</button></div></div>`}).join("");
 }
 let delArm=null;
 $("vidList").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.open){V=vids.find(v=>v.id===b.dataset.open);persist();if(prefs.mode==="lines"&&!V.lines.length){prefs.mode="chunks";savePrefs()}tab("practice")}
+  if(b.dataset.open){V=vids.find(v=>v.id===b.dataset.open);persist();if(prefs.mode==="lines"&&!V.lines.length){prefs.mode="sent";savePrefs()}tab("practice")}
   else if(b.dataset.del){
     if(delArm!==b.dataset.del){delArm=b.dataset.del;b.textContent="Delete?";b.classList.remove("ghost");setTimeout(()=>{if(delArm===b.dataset.del){delArm=null;renderVideos()}},3000);return}
     vids=vids.filter(v=>v.id!==b.dataset.del);save(KEY,vids);if(V&&V.id===b.dataset.del){V=null;save(CUR,null)}delArm=null;renderVideos();$("nowTitle").textContent=V?"· "+V.title:"";
@@ -405,22 +422,23 @@ function ensurePlayer(){
     playerVars:{playsinline:1,rel:0,modestbranding:1,cc_load_policy:prefs.cc==="on"?1:0,cc_lang_pref:"en",hl:"en",origin:location.origin},
     events:{
       onReady:()=>{ready=true;applyCC();grabTitle()},
-      onStateChange:e=>{if(e.data===1||e.data===5)grabTitle()},
+      onStateChange:e=>{if(e.data===1||e.data===5)grabTitle();if(marking)renderMark()},
       onError:e=>{const m={2:"That video link isn't valid.",100:"This video is private or was removed.",101:"The owner doesn't allow this video to play outside YouTube.",150:"The owner doesn't allow this video to play outside YouTube.",153:"YouTube refused to load here. Open this page from its web address, not as a file."};setStatus(m[e.data]||"YouTube player error "+e.data,true)}
     }});
 }
 function grabTitle(){try{const d=player.getVideoData();if(d&&d.title&&V&&d.video_id===V.id&&V.title!==d.title){V.title=d.title;persist();$("nowTitle").textContent="· "+V.title}}catch(e){}}
 function applyCC(){if(!ready)return;try{if(prefs.cc==="on"){player.loadModule("captions");player.setOption("captions","track",{languageCode:"en"})}else{player.unloadModule("captions")}}catch(e){}}
+const isPlaying=()=>ready&&player.getPlayerState()===1;
 
-// ---------- playback engine ----------
-let token=0,mon=null,gapT=null,busy=false,activeBtn=null;
+// ---------- clip playback engine ----------
+let token=0,mon=null,gapT=null,busy=false;
 function setStatus(t,err,turn){const s=$("status");s.textContent=t||"";s.classList.toggle("err",!!err);s.classList.toggle("turn",!!turn)}
-function setBusy(b,btn){busy=b;if(activeBtn)activeBtn.textContent=activeBtn.dataset.label||"▶ Play";if(b&&btn){activeBtn=btn;btn.dataset.label=btn.dataset.label||btn.textContent;btn.textContent="■ Stop"}else activeBtn=null}
-function stopAll(){token++;clearInterval(mon);clearTimeout(gapT);try{if(ready)player.pauseVideo()}catch(e){}setBusy(false);document.querySelectorAll("#lineText .w.on").forEach(w=>w.classList.remove("on"))}
+function setBusy(b){busy=b;$("tPlay").innerHTML=(b?"■ Stop":"▶ Play")+" <kbd>Space</kbd>"}
+function stopAll(){token++;clearInterval(mon);clearTimeout(gapT);try{if(ready&&!marking)player.pauseVideo()}catch(e){}if(busy)setBusy(false);document.querySelectorAll("#lineText .w.on").forEach(w=>w.classList.remove("on"))}
 function playRange(s,e,opt){
   opt=opt||{};
   if(!ready){setStatus("The video is still loading…",true);return Promise.resolve()}
-  stopAll();const my=++token;setBusy(true,opt.btn);
+  stopAll();const my=++token;setBusy(true);
   const loops=opt.once?1:Number(prefs.loops),rate=Number(prefs.rate);let n=0;
   const spans=opt.words||[];
   return new Promise(res=>{
@@ -433,7 +451,7 @@ function playRange(s,e,opt){
       mon=setInterval(()=>{
         if(my!==token){clearInterval(mon);return}
         const cur=player.getCurrentTime(),st=player.getPlayerState();
-        if(!started){if(cur>=s-0.4&&cur<e-0.05&&st===1)started=true;else{if(Date.now()-t0>5000){clearInterval(mon);setBusy(false);setStatus("Tap the video once, then try again. iPhone needs one direct tap first.",true);res()}return}}
+        if(!started){if(cur>=s-0.4&&cur<e-0.05&&st===1)started=true;else{if(Date.now()-t0>6000){clearInterval(mon);setBusy(false);setStatus(document.visibilityState==="hidden"?"The page is in the background, so the video can't start.":"Tap the video once, then press Play again. iPhone needs one direct tap first.",true);res()}return}}
         if(spans.length){const k=Math.floor((cur-s)/Math.max(.3,e-s)*spans.length);spans.forEach((w,i)=>w.classList.toggle("on",i===k))}
         if(cur>=e||st===0){
           clearInterval(mon);player.pauseVideo();spans.forEach(w=>w.classList.remove("on"));
@@ -446,68 +464,141 @@ function playRange(s,e,opt){
     once();
   });
 }
+
+// ---------- sentences: boundaries ----------
+// V.marks = sorted end times. Sentence i runs from marks[i-1] (or 0) to marks[i].
+const sentCount=()=>V.marks.length;
+function sentBounds(i){const s=i>0?V.marks[i-1]:(V.firstStart||0);return{s,e:V.marks[i]}}
 function currentRange(){
-  if(prefs.mode==="chunks"){const c=V.chunk,s=c.offset+c.idx*c.len;return{s:Math.max(0,s),e:s+c.len,key:"c"+c.idx}}
-  if(prefs.mode==="phrases"){const p=V.phrases[V.pIdx|0];return p?{s:p.s,e:p.e,key:"p"}:null}
+  if(prefs.mode==="sent"){if(!sentCount())return null;const b=sentBounds(V.sIdx);return{s:Math.max(0,b.s-0.1),e:b.e+0.15}}
+  if(prefs.mode==="grab"){const p=V.phrases[V.pIdx|0];return p?{s:p.s,e:p.e}:null}
   const l=V.lines[V.lineIdx];if(!l)return null;
   const nx=V.lines[V.lineIdx+1];const dur=ready?player.getDuration():0;
-  return{s:Math.max(0,l.t-0.2),e:(nx?nx.t:(dur>l.t?dur:l.t+5))+0.3,key:"l"};
+  return{s:Math.max(0,l.t-0.2),e:(nx?nx.t:(dur>l.t?dur:l.t+5))+0.3};
 }
+
+// ---------- marking ----------
+let marking=false,markTimer=null;
+const REACT=0.25; // typical tap delay after the sentence actually ends
+function startMarking(){
+  stopAll();marking=true;
+  if(!ready){setStatus("The video is still loading…",true);marking=false;return}
+  const from=sentCount()?V.marks[V.marks.length-1]:(V.firstStart||0);
+  try{player.setPlaybackRate(Number(prefs.rate))}catch(_){}
+  player.seekTo(Math.max(0,from-0.3),true);player.playVideo();
+  clearInterval(markTimer);markTimer=setInterval(renderMarkInfo,300);
+  renderPractice();
+}
+function stopMarking(){if(!marking)return;marking=false;clearInterval(markTimer);try{if(ready)player.pauseVideo()}catch(e){}}
+function addMark(){
+  if(!ready)return;
+  if(!isPlaying()){setStatus("Start listening first.",true);return}
+  const t=r1(Math.max(0,player.getCurrentTime()-REACT*Number(prefs.rate)));
+  const last=sentCount()?V.marks[V.marks.length-1]:(V.firstStart||0);
+  if(t<=last+0.5){setStatus("Too close to the last mark. Ignored.",true);return}
+  V.marks.push(t);persist();setStatus(`Sentence ${sentCount()} marked at ${fmt(t)}.`);renderMark();
+  const b=$("mkEnd");b.classList.add("flash");setTimeout(()=>b.classList.remove("flash"),180);
+}
+function undoMark(){
+  if(!sentCount())return;
+  V.marks.pop();persist();
+  const back=sentCount()?V.marks[V.marks.length-1]:(V.firstStart||0);
+  if(ready){player.seekTo(Math.max(0,back-0.3),true)}
+  setStatus("Removed the last mark. Listening again from the previous sentence.");renderMark();
+}
+function renderMarkInfo(){
+  const n=sentCount(),cur=ready?player.getCurrentTime():0;
+  $("mkInfo").textContent=n?`${n} sentence${n>1?"s":""} marked · now at ${fmtI(cur)}`:(ready&&cur>0?`Listening · ${fmtI(cur)}`:"No sentences yet.");
+}
+function renderMark(){
+  const playing=marking&&isPlaying();
+  $("mkPlay").textContent=playing?"❚❚ Pause":(sentCount()?"▶ Continue listening":"▶ Start listening");
+  $("mkEnd").disabled=!playing;
+  $("mkUndo").disabled=!sentCount();
+  $("mkDone").hidden=!sentCount();
+  renderMarkInfo();
+}
+$("mkPlay").addEventListener("click",()=>{
+  if(marking&&isPlaying()){player.pauseVideo();setTimeout(renderMark,150);return}
+  if(marking&&ready){player.playVideo();setTimeout(renderMark,300);return}
+  startMarking();
+});
+$("mkEnd").addEventListener("click",addMark);
+$("mkUndo").addEventListener("click",undoMark);
+$("mkDone").addEventListener("click",()=>{stopMarking();V.sIdx=0;persist();setStatus("");renderPractice()});
+$("sMore").addEventListener("click",()=>{V.sIdx=Math.max(0,sentCount()-1);startMarking()});
+$("sMerge").addEventListener("click",()=>{if(V.sIdx>=sentCount()-1){setStatus("This is the last sentence.",true);return}V.marks.splice(V.sIdx,1);persist();renderPractice();setStatus("Joined with the next sentence.")});
+$("sReset").addEventListener("click",()=>{$("sResetConfirm").hidden=false});
+$("sResetNo").addEventListener("click",()=>{$("sResetConfirm").hidden=true});
+$("sResetYes").addEventListener("click",()=>{V.marks=[];V.sIdx=0;V.sReps={};V.firstStart=0;persist();$("sResetConfirm").hidden=true;renderPractice()});
+document.querySelectorAll("[data-sn]").forEach(b=>b.addEventListener("click",()=>{
+  const[k,d]=b.dataset.sn.split(":");const dv=Number(d),i=V.sIdx;
+  if(k==="e"){const lo=sentBounds(i).s+0.4,hi=i+1<sentCount()?V.marks[i+1]-0.4:1e9;V.marks[i]=r1(Math.min(hi,Math.max(lo,V.marks[i]+dv)))}
+  else{if(i===0)V.firstStart=r1(Math.max(0,Math.min(V.marks[0]-0.4,(V.firstStart||0)+dv)));else{const lo=sentBounds(i-1).s+0.4,hi=V.marks[i]-0.4;V.marks[i-1]=r1(Math.min(hi,Math.max(lo,V.marks[i-1]+dv)))}}
+  persist();renderPractice();playCurrent({once:true});
+}));
 
 // ---------- practice render ----------
 function renderPractice(){
   ensurePlayer();
   $("modeLines").hidden=!V.lines.length;
-  if(prefs.mode==="lines"&&!V.lines.length)prefs.mode="chunks";
+  if(prefs.mode==="lines"&&!V.lines.length)prefs.mode="sent";
   document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===prefs.mode?"true":"false"));
-  for(const m of["chunks","phrases","lines"])$("m-"+m).hidden=m!==prefs.mode;
+  const showMark=prefs.mode==="sent"&&(marking||!sentCount());
+  $("m-mark").hidden=!showMark;
+  $("m-sent").hidden=!(prefs.mode==="sent"&&!showMark);
+  $("m-grab").hidden=prefs.mode!=="grab";
+  $("m-lines").hidden=prefs.mode!=="lines";
+  $("transport").hidden=showMark;
   $("rate").value=String(prefs.rate);$("loops").value=String(prefs.loops);$("gap").value=String(prefs.gap);$("cc").value=prefs.cc;
-  if(prefs.mode==="chunks"){const c=V.chunk,s=Math.max(0,c.offset+c.idx*c.len);$("chunkName").textContent="Chunk "+(c.idx+1);$("chunkTime").textContent=fmt(s)+"–"+fmt(s+c.len);$("chunkLen").value=String(c.len)}
-  if(prefs.mode==="phrases")renderPhrases();
+  if(showMark)renderMark();
+  else if(prefs.mode==="sent"){V.sIdx=Math.min(V.sIdx,sentCount()-1);const b=sentBounds(V.sIdx);$("sName").textContent=`Sentence ${V.sIdx+1} of ${sentCount()}`;$("sTime").textContent=fmt(b.s)+"–"+fmt(b.e)}
+  if(prefs.mode==="grab")renderPhrases();
   if(prefs.mode==="lines")renderLines();
   renderReps();renderRec();
 }
 function repCount(){
-  if(prefs.mode==="chunks")return(V.chunkReps||{})[V.chunk.idx]||0;
-  if(prefs.mode==="phrases"){const p=V.phrases[V.pIdx|0];return p?p.reps||0:0}
+  if(prefs.mode==="sent")return V.sReps[V.sIdx]||0;
+  if(prefs.mode==="grab"){const p=V.phrases[V.pIdx|0];return p?p.reps||0:0}
   const l=V.lines[V.lineIdx];return l?l.reps||0:0;
 }
 function renderReps(){const n=repCount(),d=$("dots");d.innerHTML="";for(let i=0;i<3;i++){const s=document.createElement("span");s.className="dot"+(i<n?" f":"");d.appendChild(s)}if(n>3){const s=document.createElement("span");s.className="note";s.textContent="+"+(n-3);d.appendChild(s)}}
-$("btnRep").addEventListener("click",()=>{
-  if(prefs.mode==="chunks"){V.chunkReps=V.chunkReps||{};V.chunkReps[V.chunk.idx]=(V.chunkReps[V.chunk.idx]||0)+1}
-  else if(prefs.mode==="phrases"){const p=V.phrases[V.pIdx|0];if(!p)return;p.reps=(p.reps||0)+1}
+function addRep(){
+  if(prefs.mode==="sent"){if(!sentCount())return;V.sReps[V.sIdx]=(V.sReps[V.sIdx]||0)+1}
+  else if(prefs.mode==="grab"){const p=V.phrases[V.pIdx|0];if(!p)return;p.reps=(p.reps||0)+1}
   else{const l=V.lines[V.lineIdx];if(!l)return;l.reps=(l.reps||0)+1}
-  persist();renderReps();if(prefs.mode==="phrases")renderPhrases();if(prefs.mode==="lines")renderLines();
-});
-document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>{stopAll();prefs.mode=b.dataset.mode;savePrefs();setStatus("");renderPractice()}));
-// chunks
-const playCurrent=btn=>{if(busy){stopAll();setStatus("");return}const r=currentRange();if(!r){setStatus("Nothing selected yet.",true);return}playRange(r.s,r.e,{btn,words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]})};
-$("cPlay").addEventListener("click",()=>playCurrent($("cPlay")));
-const chunkMove=d=>{stopAll();V.chunk.idx=Math.max(0,V.chunk.idx+d);persist();renderPractice();setStatus("")};
-$("cPrev").addEventListener("click",()=>chunkMove(-1));
-$("cNext").addEventListener("click",()=>chunkMove(1));
-document.querySelectorAll("[data-shift]").forEach(b=>b.addEventListener("click",()=>{V.chunk.offset=Math.round((V.chunk.offset+Number(b.dataset.shift))*10)/10;persist();renderPractice();playCurrent($("cPlay"))}));
-$("chunkLen").addEventListener("change",e=>{const c=V.chunk,start=c.offset+c.idx*c.len;c.len=Number(e.target.value);c.idx=Math.max(0,Math.floor((start-c.offset)/c.len));persist();renderPractice()});
-$("cSave").addEventListener("click",()=>{const r=currentRange();V.phrases.push({s:r.s,e:r.e,reps:0,at:Date.now()});V.pIdx=V.phrases.length-1;persist();setStatus("Saved to My phrases.")});
-// phrases
+  persist();renderReps();if(prefs.mode==="grab")renderPhrases();if(prefs.mode==="lines")renderLines();
+}
+$("btnRep").addEventListener("click",addRep);
+document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>{stopAll();stopMarking();prefs.mode=b.dataset.mode;savePrefs();setStatus("");renderPractice()}));
+function playCurrent(o){if(busy&&!(o&&o.once)){stopAll();setStatus("");return}const r=currentRange();if(!r){setStatus("Nothing to play yet.",true);return}return playRange(r.s,r.e,Object.assign({words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]},o||{}))}
+$("tPlay").addEventListener("click",()=>playCurrent());
+function step(d){
+  stopAll();setStatus("");
+  if(prefs.mode==="sent"){V.sIdx=Math.max(0,Math.min(sentCount()-1,V.sIdx+d))}
+  else if(prefs.mode==="grab"){if(!V.phrases.length)return;V.pIdx=Math.max(0,Math.min(V.phrases.length-1,(V.pIdx|0)+d))}
+  else{V.lineIdx=Math.max(0,Math.min(V.lines.length-1,V.lineIdx+d))}
+  persist();renderPractice();
+}
+$("tPrev").addEventListener("click",()=>step(-1));
+$("tNext").addEventListener("click",()=>step(1));
+// grab
 $("grabSel").value=String(prefs.grab);$("grabLen").textContent=prefs.grab;
 $("grabSel").addEventListener("change",e=>{prefs.grab=Number(e.target.value);$("grabLen").textContent=prefs.grab;savePrefs()});
 $("pGrab").addEventListener("click",()=>{
   if(!ready){setStatus("The video is still loading…",true);return}
   const cur=player.getCurrentTime();if(cur<0.5){setStatus("Play the video first, then tap Grab right after the phrase.",true);return}
-  const e=Math.round(cur*10)/10,s=Math.max(0,Math.round((cur-prefs.grab)*10)/10);
-  V.phrases.push({s,e,reps:0,at:Date.now()});V.pIdx=V.phrases.length-1;persist();renderPractice();playCurrent($("pPlay"));
+  V.phrases.push({s:r1(Math.max(0,cur-prefs.grab)),e:r1(cur),reps:0,at:Date.now()});V.pIdx=V.phrases.length-1;persist();renderPractice();playCurrent();
 });
-document.querySelectorAll("[data-pe]").forEach(b=>b.addEventListener("click",()=>{const p=V.phrases[V.pIdx|0];if(!p)return;const[k,d]=b.dataset.pe.split(":");p[k]=Math.max(0,Math.round((p[k]+Number(d))*10)/10);if(p.e-p.s<0.5)p.e=p.s+0.5;persist();renderPhrases();playCurrent($("pPlay"))}));
-$("pPlay").addEventListener("click",()=>playCurrent($("pPlay")));
+document.querySelectorAll("[data-pe]").forEach(b=>b.addEventListener("click",()=>{const p=V.phrases[V.pIdx|0];if(!p)return;const[k,d]=b.dataset.pe.split(":");p[k]=r1(Math.max(0,p[k]+Number(d)));if(p.e-p.s<0.5)p.e=p.s+0.5;persist();renderPhrases();playCurrent({once:true})}));
 function renderPhrases(){
   const has=V.phrases.length>0;$("pEdit").hidden=!has;
   if(V.pIdx==null||V.pIdx>=V.phrases.length)V.pIdx=V.phrases.length-1;
   const p=V.phrases[V.pIdx|0];if(p)$("pTime").textContent=fmt(p.s)+"–"+fmt(p.e);
-  $("phraseList").innerHTML=has?V.phrases.map((p,i)=>`<div class="phrase" aria-current="${i===V.pIdx}"><button class="btn sm" data-pp="${i}" aria-label="Play">▶</button><button class="btn ghost sm" data-ps="${i}" style="justify-content:flex-start"><span class="time">${fmt(p.s)}–${fmt(p.e)}</span></button><span class="row" style="gap:4px;flex-wrap:nowrap"><span class="r">${p.reps?p.reps+"×":""}</span><button class="btn ghost sm" data-pd="${i}" aria-label="Delete phrase">✕</button></span></div>`).join(""):'<p class="note" style="margin:0">No phrases yet.</p>';
+  $("phraseList").innerHTML=has?V.phrases.map((p,i)=>`<div class="phrase" aria-current="${i===V.pIdx}"><button class="btn sm" data-pp="${i}" aria-label="Play">▶</button><button class="btn ghost sm" data-ps="${i}" style="justify-content:flex-start"><span class="time">${fmt(p.s)}–${fmt(p.e)}</span></button><span class="row" style="gap:4px;flex-wrap:nowrap"><span class="r">${p.reps?p.reps+"×":""}</span><button class="btn ghost sm" data-pd="${i}" aria-label="Delete clip">✕</button></span></div>`).join(""):'<p class="note" style="margin:0">No clips yet.</p>';
 }
 $("phraseList").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.pp!=null){V.pIdx=Number(b.dataset.pp);persist();renderPractice();playCurrent($("pPlay"))}
+  if(b.dataset.pp!=null){V.pIdx=Number(b.dataset.pp);persist();renderPractice();playCurrent()}
   else if(b.dataset.ps!=null){V.pIdx=Number(b.dataset.ps);persist();renderPractice()}
   else if(b.dataset.pd!=null){stopAll();V.phrases.splice(Number(b.dataset.pd),1);persist();renderPractice()}});
 // lines
@@ -521,9 +612,6 @@ function renderLines(){
   const cur=list.querySelector('[aria-current="true"]');if(cur)list.scrollTop=cur.offsetTop-list.clientHeight/3;
 }
 $("lineList").addEventListener("click",e=>{const b=e.target.closest("button[data-li]");if(!b)return;stopAll();V.lineIdx=Number(b.dataset.li);persist();renderPractice()});
-$("lPlay").addEventListener("click",()=>playCurrent($("lPlay")));
-$("lPrev").addEventListener("click",()=>{stopAll();V.lineIdx=Math.max(0,V.lineIdx-1);persist();renderPractice()});
-$("lNext").addEventListener("click",()=>{stopAll();V.lineIdx=Math.min(V.lines.length-1,V.lineIdx+1);persist();renderPractice()});
 $("lHide").addEventListener("change",renderLines);
 // settings
 $("rate").addEventListener("change",e=>{prefs.rate=Number(e.target.value);savePrefs();try{player.setPlaybackRate(prefs.rate)}catch(_){}});
@@ -537,20 +625,40 @@ let mrec=null,chunks=[],stream=null,mineUrl=null,mineKey=null;
 const aud=new Audio();aud.setAttribute("playsinline","");
 function recKey(){const r=currentRange();return r?prefs.mode+":"+r.s+":"+r.e:""}
 function renderRec(){const ok=!!mineUrl&&mineKey===recKey();$("btnMine").disabled=!ok;$("btnCompare").disabled=!ok}
-$("btnRec").addEventListener("click",async()=>{
+async function toggleRec(){
   if(mrec&&mrec.state==="recording"){mrec.stop();return}
   if(!navigator.mediaDevices||!window.MediaRecorder){$("recNote").textContent="Recording isn't supported on this browser.";return}
-  try{stream=stream||await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){$("recNote").textContent="Microphone access was blocked. Allow it in Settings to record.";return}
+  try{stream=stream||await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){$("recNote").textContent="Microphone access was blocked. Allow it for this site (address bar on Mac, Settings → Safari on iPhone).";return}
   stopAll();chunks=[];const key=recKey();
   mrec=new MediaRecorder(stream);
   mrec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
   mrec.onstop=()=>{if(mineUrl)URL.revokeObjectURL(mineUrl);mineUrl=URL.createObjectURL(new Blob(chunks,{type:mrec.mimeType||"audio/mp4"}));mineKey=key;
-    $("btnRec").setAttribute("aria-pressed","false");$("btnRec").textContent="● Record";$("recNote").textContent="Recorded. It's kept until you change clips or close the app.";renderRec()};
-  mrec.start();$("btnRec").setAttribute("aria-pressed","true");$("btnRec").textContent="■ Stop";$("recNote").textContent="Recording… say the clip, then tap Stop.";
-});
+    $("btnRec").setAttribute("aria-pressed","false");$("btnRec").innerHTML="● Record <kbd>R</kbd>";$("recNote").textContent="Recorded. Kept until you move to another clip or close the page.";renderRec()};
+  mrec.start();$("btnRec").setAttribute("aria-pressed","true");$("btnRec").innerHTML="■ Stop <kbd>R</kbd>";$("recNote").textContent="Recording… say the clip, then tap Stop.";
+}
+$("btnRec").addEventListener("click",toggleRec);
 const playMine=()=>new Promise(r=>{if(!mineUrl)return r();aud.src=mineUrl;aud.onended=r;aud.onerror=r;aud.play().catch(r)});
 $("btnMine").addEventListener("click",()=>{stopAll();playMine()});
-$("btnCompare").addEventListener("click",async()=>{const r=currentRange();if(!r)return;await playRange(r.s,r.e,{once:true});await new Promise(x=>setTimeout(x,300));setStatus("Now yours…");await playMine();setStatus("")});
+$("btnCompare").addEventListener("click",async()=>{await playCurrent({once:true});await new Promise(x=>setTimeout(x,300));setStatus("Now yours…");await playMine();setStatus("")});
+
+// ---------- keyboard (Mac) ----------
+document.addEventListener("keydown",e=>{
+  if($("t-practice").hidden)return;
+  const tag=(e.target.tagName||"").toLowerCase();
+  if(["input","textarea","select"].includes(tag)||e.metaKey||e.ctrlKey||e.altKey)return;
+  const k=e.key.toLowerCase();
+  if(!$("m-mark").hidden){
+    if(k==="m"||e.key==="Enter"){e.preventDefault();addMark()}
+    else if(e.key===" "){e.preventDefault();$("mkPlay").click()}
+    else if(k==="u"||e.key==="Backspace"){e.preventDefault();undoMark()}
+    return;
+  }
+  if(e.key===" "){e.preventDefault();playCurrent()}
+  else if(e.key==="ArrowRight"){e.preventDefault();step(1)}
+  else if(e.key==="ArrowLeft"){e.preventDefault();step(-1)}
+  else if(e.key==="Enter"&&tag!=="button"){e.preventDefault();addRep()}
+  else if(k==="r"){toggleRec()}
+});
 
 // ---------- summary ----------
 const words=s=>(s.toLowerCase().match(/[a-z0-9']+/g)||[]);
