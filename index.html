@@ -129,6 +129,9 @@ details summary{cursor:pointer;font-weight:700;font-size:15px}
 .lines .ts,.ts{font-family:var(--f-mono);font-size:12px;color:var(--faint)}
 .lines .t{min-width:0;overflow-wrap:anywhere}
 
+.bigplay4{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(0,1fr) 52px;gap:8px}
+.bigplay4 .btn{min-height:56px;font-size:17px;padding-inline:8px}
+ol.howto{margin:0;padding-left:20px;display:grid;gap:6px;font-size:15px}
 .huge{min-height:96px;font-size:22px;border-radius:16px}
 .huge.flash{filter:brightness(1.25);transform:scale(.98)}
 .recrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -204,8 +207,11 @@ ol.steps li{margin-bottom:6px}
       <div class="card stack" id="m-sent" hidden>
         <div class="seg-title"><b id="sName">Sentence 1</b><span class="time" id="sTime"></span></div>
         <div id="sNew" class="stack" hidden>
-          <p class="note" style="margin:0" id="sNewText">Tap Listen. The moment the speaker finishes this sentence, tap Sentence ended. The sentence then loops for you to shadow.</p>
-          <button class="btn repc huge" id="mkEnd" disabled>⏎ Sentence ended <kbd>M</kbd></button>
+          <ol class="howto">
+            <li><b>Play</b> (Space) to listen.</li>
+            <li>Press <b>Pause</b> (Space) right when the sentence ends. That pause saves the sentence.</li>
+            <li><b>↻ Repeat</b> (R) loops it for you to shadow. Space again keeps listening.</li>
+          </ol>
         </div>
         <div id="sEdit" class="stack">
           <div class="nudge">
@@ -225,7 +231,7 @@ ol.steps li{margin-bottom:6px}
 
       <!-- grab -->
       <div class="card stack" id="m-grab" hidden>
-        <p class="note" style="margin:0">Play the video normally. Right after a phrase you like, tap Grab. It saves the last few seconds as a clip.</p>
+        <p class="note" style="margin:0">Play the video. Right after a phrase you like, tap Grab (G). It saves the last few seconds as a clip, and R repeats it.</p>
         <div class="row" style="flex-wrap:nowrap">
           <button class="btn repc" id="pGrab" style="flex:1"><span>↺ Grab last <span id="grabLen">4</span>s</span></button>
           <select id="grabSel" style="width:auto" aria-label="Grab length"><option value="3">3s</option><option value="4" selected>4s</option><option value="6">6s</option><option value="8">8s</option></select>
@@ -252,20 +258,21 @@ ol.steps li{margin-bottom:6px}
 
       <!-- shared transport: play, record, reps -->
       <div class="card stack" id="transport">
-        <div class="bigplay">
+        <div class="bigplay4">
           <button class="btn" id="tPrev" aria-label="Previous clip">‹</button>
           <button class="btn primary" id="tPlay">▶ Play <kbd>Space</kbd></button>
+          <button class="btn repc" id="tRepeat">↻ Repeat <kbd>R</kbd></button>
           <button class="btn" id="tNext" aria-label="Next clip">›</button>
         </div>
         <div class="recrow">
-          <button class="btn rec" id="btnRec" aria-pressed="false">● Record <kbd>R</kbd></button>
+          <button class="btn rec" id="btnRec" aria-pressed="false">● Record <kbd>V</kbd></button>
           <button class="btn" id="btnMine" disabled>▶ Mine</button>
           <button class="btn" id="btnCompare" disabled>Original → mine</button>
         </div>
         <div class="repsrow">
           <span class="eyebrow">Reps</span>
           <div class="dots" id="dots"></div>
-          <button class="btn repc sm" id="btnRep">+1 rep <kbd>Enter</kbd></button>
+          <button class="btn sm" id="btnRep">+1 rep <kbd>Enter</kbd></button>
         </div>
         <div class="status" id="status"></div>
         <span class="note" id="recNote"></span>
@@ -280,7 +287,7 @@ ol.steps li{margin-bottom:6px}
             <label>Your turn<select id="gap"><option value="0.75">0.75× clip</option><option value="1" selected>1× clip</option><option value="1.5">1.5× clip</option><option value="2">2× clip</option></select></label>
             <label>Captions<select id="cc"><option value="on" selected>Show</option><option value="off">Hide</option></select></label>
           </div>
-          <p class="note" style="margin:0">On iPhone, if a button doesn't start the video the first time, tap the video once. iPhone needs one direct tap before buttons can control it. On a Mac: Space play/stop, ← → move, R record, Enter +1 rep, M mark a sentence.</p>
+          <p class="note" style="margin:0">On iPhone, if a button doesn't start the video the first time, tap the video once. iPhone needs one direct tap before buttons can control it. On a Mac: Space play/pause (pausing saves a sentence), R repeat, ← → previous/next, V record, Enter +1 rep, G grab (Grab mode).</p>
         </div>
       </details>
       <button class="btn" id="toSummary">Done → write my summary</button>
@@ -350,7 +357,7 @@ function videoIdFrom(u){if(!u)return"";u=u.trim();if(/^[\w-]{11}$/.test(u))retur
 // ---------- tabs ----------
 function tab(name){
   if(name!=="videos"&&!V)name="videos";
-  stopAll();stopMarking();
+  stopAll();remark=false;
   for(const t of["videos","practice","summary"])$("t-"+t).hidden=t!==name;
   document.querySelectorAll(".tabs button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===name?"true":"false"));
   $("nowTitle").textContent=V?"· "+(V.title||"Untitled"):"";
@@ -411,40 +418,57 @@ function ensurePlayer(){
     playerVars:{playsinline:1,rel:0,modestbranding:1,cc_load_policy:prefs.cc==="on"?1:0,cc_lang_pref:"en",hl:"en",origin:location.origin},
     events:{
       onReady:()=>{ready=true;applyCC();grabTitle()},
-      onStateChange:e=>{if(e.data===1||e.data===5)grabTitle();if(marking)renderListenUI()},
+      onStateChange:e=>{if(e.data===1||e.data===5)grabTitle();if(typeof onPlayerState==="function")onPlayerState(e.data)},
       onError:e=>{const m={2:"That video link isn't valid.",100:"This video is private or was removed.",101:"The owner doesn't allow this video to play outside YouTube.",150:"The owner doesn't allow this video to play outside YouTube.",153:"YouTube refused to load here. Open this page from its web address, not as a file."};setStatus(m[e.data]||"YouTube player error "+e.data,true)}
     }});
 }
 function grabTitle(){try{const d=player.getVideoData();if(d&&d.title&&V&&d.video_id===V.id&&V.title!==d.title){V.title=d.title;persist();$("nowTitle").textContent="· "+V.title}}catch(e){}}
 function applyCC(){if(!ready)return;try{if(prefs.cc==="on"){player.loadModule("captions");player.setOption("captions","track",{languageCode:"en"})}else{player.unloadModule("captions")}}catch(e){}}
-const isPlaying=()=>ready&&player.getPlayerState()===1;
 
-// ---------- clip playback engine ----------
-let token=0,mon=null,gapT=null,busy=false;
+// ---------- playback model ----------
+// Two separate actions, like a normal player plus one extra button:
+//   Space / ▶❚❚  = play or pause the video from wherever it is.
+//                  In Sentences mode, pausing past the last saved sentence saves a new sentence
+//                  ending where you paused.
+//   R / ↻ Repeat = loop the current clip (sentence, grabbed clip or transcript line).
+let token=0,mon=null,gapT=null,busy=false,freePlay=false,track=null,remark=false;
+const REACT=0.25; // typical delay between the sentence really ending and your key press
 function setStatus(t,err,turn){const s=$("status");s.textContent=t||"";s.classList.toggle("err",!!err);s.classList.toggle("turn",!!turn)}
-function setBusy(b){busy=b;$("tPlay").innerHTML=(b?"■ Stop":"▶ Play")+" <kbd>Space</kbd>"}
-function stopAll(){token++;clearInterval(mon);clearTimeout(gapT);try{if(ready&&!marking)player.pauseVideo()}catch(e){}if(busy)setBusy(false);document.querySelectorAll("#lineText .w.on").forEach(w=>w.classList.remove("on"))}
+const isPlaying=()=>ready&&player.getPlayerState()===1;
+function renderButtons(){
+  if(!V||!$("tPlay"))return;
+  const playing=freePlay&&isPlaying();
+  $("tPlay").innerHTML=(playing?"❚❚ Pause":"▶ Play")+" <kbd>Space</kbd>";
+  $("tRepeat").innerHTML=(busy?"■ Stop":"↻ Repeat")+" <kbd>R</kbd>";
+  $("tRepeat").disabled=!busy&&!currentRange();
+}
+function stopRepeat(){token++;clearInterval(mon);clearTimeout(gapT);if(busy){busy=false;try{if(ready)player.pauseVideo()}catch(e){}}document.querySelectorAll("#lineText .w.on").forEach(w=>w.classList.remove("on"))}
+function stopAll(){freePlay=false;clearInterval(track);stopRepeat();try{if(ready)player.pauseVideo()}catch(e){}renderButtons()}
+
+// clip loop (Repeat)
 function playRange(s,e,opt){
   opt=opt||{};
   if(!ready){setStatus("The video is still loading…",true);return Promise.resolve()}
-  stopAll();const my=++token;setBusy(true);
+  freePlay=false;clearInterval(track);stopRepeat();
+  const my=++token;busy=true;renderButtons();
   const loops=opt.once?1:Number(prefs.loops),rate=Number(prefs.rate);let n=0;
   const spans=opt.words||[];
   return new Promise(res=>{
+    const finish=()=>{busy=false;renderButtons();res()};
     const once=()=>{
       if(my!==token)return res();
-      n++;setStatus(opt.once?"Original…":loops===0?`Listen · round ${n}`:`Listen · round ${n} of ${loops}`);
+      n++;setStatus(opt.once?"Original…":loops===0?`Repeat · round ${n}`:`Repeat · round ${n} of ${loops}`);
       try{player.setPlaybackRate(rate)}catch(_){}
       player.seekTo(s,true);player.playVideo();
       let started=false;const t0=Date.now();clearInterval(mon);
       mon=setInterval(()=>{
         if(my!==token){clearInterval(mon);return}
         const cur=player.getCurrentTime(),st=player.getPlayerState();
-        if(!started){if(cur>=s-0.4&&cur<e-0.05&&st===1)started=true;else{if(Date.now()-t0>6000){clearInterval(mon);setBusy(false);setStatus(document.visibilityState==="hidden"?"The page is in the background, so the video can't start.":"Tap the video once, then press Play again. iPhone needs one direct tap first.",true);res()}return}}
+        if(!started){if(cur>=s-0.4&&cur<e-0.05&&st===1)started=true;else{if(Date.now()-t0>6000){clearInterval(mon);setStatus(document.visibilityState==="hidden"?"The page is in the background, so the video can't start.":"Tap the video once, then try again. iPhone needs one direct tap first.",true);finish()}return}}
         if(spans.length){const k=Math.floor((cur-s)/Math.max(.3,e-s)*spans.length);spans.forEach((w,i)=>w.classList.toggle("on",i===k))}
         if(cur>=e||st===0){
           clearInterval(mon);player.pauseVideo();spans.forEach(w=>w.classList.remove("on"));
-          if(loops!==0&&n>=loops){setBusy(false);if(!opt.once)setStatus("Your turn: say it, then tap +1 rep.",false,true);return res()}
+          if(loops!==0&&n>=loops){if(!opt.once)setStatus("Your turn: say it. R repeats again, Space keeps listening.",false,true);return finish()}
           setStatus("Your turn · shadow it now",false,true);
           gapT=setTimeout(once,Math.max(600,(e-s)/rate*1000*Number(prefs.gap)));
         }
@@ -454,10 +478,14 @@ function playRange(s,e,opt){
   });
 }
 
-// ---------- sentences: boundaries ----------
-// V.marks = sorted end times. Sentence i runs from marks[i-1] (or 0) to marks[i].
+// ---------- sentences ----------
+// V.marks = sorted end times. Sentence i runs from marks[i-1] (or firstStart) to marks[i].
 const sentCount=()=>V.marks.length;
 function sentBounds(i){const s=i>0?V.marks[i-1]:(V.firstStart||0);return{s,e:V.marks[i]}}
+const lastBoundary=()=>sentCount()?V.marks[sentCount()-1]:(V.firstStart||0);
+const isNew=()=>prefs.mode==="sent"&&V.sIdx>=sentCount();
+function sentAt(t){for(let i=0;i<sentCount();i++)if(t<V.marks[i])return i;return sentCount()}
+function lineAt(t){let k=0;for(let i=0;i<V.lines.length;i++)if(V.lines[i].t<=t+0.05)k=i;return k}
 function currentRange(){
   if(prefs.mode==="sent"){if(isNew())return null;const b=sentBounds(V.sIdx);return{s:Math.max(0,b.s-0.1),e:b.e+0.15}}
   if(prefs.mode==="grab"){const p=V.phrases[V.pIdx|0];return p?{s:p.s,e:p.e}:null}
@@ -466,61 +494,87 @@ function currentRange(){
   return{s:Math.max(0,l.t-0.2),e:(nx?nx.t:(dur>l.t?dur:l.t+5))+0.3};
 }
 
-// ---------- marking, one sentence at a time ----------
-// The current sentence is "new" when it has no end mark yet (sIdx === number of marks),
-// or when the user chose to re-mark its end. Listen plays from its start; tapping
-// Sentence ended saves the end and the sentence starts looping right away.
-let marking=false,markTimer=null,remark=false;
-const REACT=0.25; // typical tap delay after the sentence actually ends
-const isNew=()=>prefs.mode==="sent"&&(remark||V.sIdx>=sentCount());
-function startListening(){
+// free play (Space)
+function startFree(){
   if(!ready){setStatus("The video is still loading…",true);return}
-  stopAll();marking=true;
-  const from=sentBounds(V.sIdx).s;
+  stopRepeat();
   try{player.setPlaybackRate(Number(prefs.rate))}catch(_){}
-  player.seekTo(Math.max(0,from-0.2),true);player.playVideo();
-  clearInterval(markTimer);
-  markTimer=setInterval(()=>{
-    if(!marking)return;
-    const st=player.getPlayerState();
-    if(st===0){stopMarking();setStatus("Reached the end of the video.",false);renderPractice();return}
-    setStatus(`Listening · ${fmtI(player.getCurrentTime())} · tap Sentence ended when it finishes`);
-    renderListenUI();
+  if(remark&&prefs.mode==="sent")player.seekTo(Math.max(0,sentBounds(V.sIdx).s-0.2),true);
+  player.playVideo();freePlay=true;startTracking();
+  setTimeout(renderButtons,250);
+}
+function pauseFree(){if(!ready)return;try{player.pauseVideo()}catch(e){}onFreePause()}
+function onFreePause(){
+  if(!freePlay)return;
+  freePlay=false;clearInterval(track);
+  const t=player.getCurrentTime();
+  if(prefs.mode==="sent"){
+    const cut=r1(Math.max(0,t-REACT*Number(prefs.rate)));
+    if(remark){
+      const i=V.sIdx,lo=sentBounds(i).s+0.5,hi=i+1<sentCount()?V.marks[i+1]-0.4:1e9;
+      remark=false;
+      if(cut>=lo){V.marks[i]=Math.min(hi,cut);persist();setStatus(`Sentence ${i+1} now ends at ${fmt(V.marks[i])}. Press R to repeat it.`)}
+      else setStatus("That was too close to the start, so the end wasn't changed.",true);
+    }else if(cut>lastBoundary()+0.5){
+      V.marks.push(cut);V.sIdx=sentCount()-1;persist();
+      const b=sentBounds(V.sIdx);setStatus(`Saved sentence ${V.sIdx+1} (${fmt(b.s)}–${fmt(b.e)}). R repeats it, Space keeps listening.`);
+    }else{
+      V.sIdx=sentAt(t);persist();setStatus(V.sIdx<sentCount()?`Paused in sentence ${V.sIdx+1}. R repeats it.`:"Paused.");
+    }
+  }else if(prefs.mode==="lines"&&V.lines.length){V.lineIdx=lineAt(t);persist();setStatus("Paused. R repeats this line.")}
+  else setStatus("Paused.");
+  renderPractice();
+}
+function startTracking(){
+  clearInterval(track);
+  track=setInterval(()=>{
+    if(!freePlay||!ready)return;
+    const t=player.getCurrentTime();
+    if(prefs.mode==="sent"&&!remark){
+      const i=sentAt(t);if(i!==V.sIdx){V.sIdx=i;renderPractice()}
+      if(i>=sentCount())setStatus(`Listening · ${fmtI(t)} · press Space right when the sentence ends`);
+      else setStatus(`Listening · sentence ${i+1}`);
+    }else if(prefs.mode==="sent"&&remark){setStatus(`Listening · press Space where sentence ${V.sIdx+1} should end`)}
+    else if(prefs.mode==="lines"&&V.lines.length){const k=lineAt(t);if(k!==V.lineIdx){V.lineIdx=k;renderPractice()}setStatus("Listening")}
+    else setStatus(`Listening · ${fmtI(t)}`);
+    renderButtons();
   },250);
-  renderPractice();
 }
-function stopMarking(){if(!marking)return;marking=false;clearInterval(markTimer);try{if(ready)player.pauseVideo()}catch(e){}}
-function addMark(){
-  if(!ready||!isNew())return;
-  if(!(marking&&isPlaying())){setStatus("Tap Listen first.",true);return}
-  const i=V.sIdx,t=r1(Math.max(0,player.getCurrentTime()-REACT*Number(prefs.rate)));
-  const lo=sentBounds(i).s+0.5;
-  if(t<lo){setStatus("That's too soon after the sentence started. Keep listening.",true);return}
-  if(remark){const hi=i+1<sentCount()?V.marks[i+1]-0.4:1e9;V.marks[i]=Math.min(hi,t);remark=false}
-  else V.marks.push(t);
-  persist();stopMarking();
-  const b=$("mkEnd");b.classList.add("flash");setTimeout(()=>b.classList.remove("flash"),180);
-  renderPractice();
-  setTimeout(()=>playCurrent(),250); // start shadowing this sentence right away
+function togglePlay(){
+  if(busy){stopAll();setStatus("");return}
+  if(freePlay&&isPlaying())pauseFree();else startFree();
 }
-function renderListenUI(){
-  if(!isNew())return;
-  const listening=marking&&isPlaying();
-  $("mkEnd").disabled=!listening;
-  $("tPlay").innerHTML=(listening?"❚❚ Pause":"▶ Listen")+" <kbd>Space</kbd>";
+function repeat(){
+  if(busy){stopAll();setStatus("");return}
+  if(freePlay&&isPlaying())pauseFree(); // pressing R while listening = cut here, then repeat
+  const r=currentRange();
+  if(!r){setStatus(prefs.mode==="sent"?"No sentence yet. Press Space to listen, and Space again where the sentence ends.":"Nothing to repeat yet.",true);return}
+  return playRange(r.s,r.e,{words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]});
 }
-$("mkEnd").addEventListener("click",addMark);
-$("sRemark").addEventListener("click",()=>{remark=true;renderPractice();startListening()});
-$("sMerge").addEventListener("click",()=>{if(V.sIdx>=sentCount()-1){setStatus("There's no marked sentence after this one yet.",true);return}V.marks.splice(V.sIdx,1);persist();renderPractice();setStatus("Joined with the next sentence.")});
+function playOnce(){const r=currentRange();if(!r)return Promise.resolve();return playRange(r.s,r.e,{once:true,words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]})}
+$("tPlay").addEventListener("click",togglePlay);
+$("tRepeat").addEventListener("click",repeat);
+
+$("sRemark").addEventListener("click",()=>{if(isNew())return;stopAll();remark=true;renderPractice();setStatus(`Re-marking sentence ${V.sIdx+1}: it plays from its start, press Space where it should end.`);startFree()});
+$("sMerge").addEventListener("click",()=>{if(V.sIdx>=sentCount()-1){setStatus("There's no saved sentence after this one yet.",true);return}V.marks.splice(V.sIdx,1);persist();renderPractice();setStatus("Joined with the next sentence.")});
 $("sReset").addEventListener("click",()=>{$("sResetConfirm").hidden=false});
 $("sResetNo").addEventListener("click",()=>{$("sResetConfirm").hidden=true});
-$("sResetYes").addEventListener("click",()=>{stopMarking();remark=false;V.marks=[];V.sIdx=0;V.sReps={};V.firstStart=0;persist();$("sResetConfirm").hidden=true;renderPractice()});
+$("sResetYes").addEventListener("click",()=>{stopAll();remark=false;V.marks=[];V.sIdx=0;V.sReps={};V.firstStart=0;persist();$("sResetConfirm").hidden=true;if(ready)player.seekTo(0,true);renderPractice()});
 document.querySelectorAll("[data-sn]").forEach(b=>b.addEventListener("click",()=>{
+  if(isNew())return;
   const[k,d]=b.dataset.sn.split(":");const dv=Number(d),i=V.sIdx;
   if(k==="e"){const lo=sentBounds(i).s+0.4,hi=i+1<sentCount()?V.marks[i+1]-0.4:1e9;V.marks[i]=r1(Math.min(hi,Math.max(lo,V.marks[i]+dv)))}
   else{if(i===0)V.firstStart=r1(Math.max(0,Math.min(V.marks[0]-0.4,(V.firstStart||0)+dv)));else{const lo=sentBounds(i-1).s+0.4,hi=V.marks[i]-0.4;V.marks[i-1]=r1(Math.min(hi,Math.max(lo,V.marks[i-1]+dv)))}}
-  persist();renderPractice();playCurrent({once:true});
+  persist();renderPractice();playOnce();
 }));
+
+// Pausing or playing with YouTube's own controls (tapping the video) behaves like Space.
+function onPlayerState(st){
+  if(busy)return;
+  if(st===1&&!freePlay){freePlay=true;startTracking()}
+  else if((st===2||st===0)&&freePlay)onFreePause();
+  renderButtons();
+}
 
 // ---------- practice render ----------
 function renderPractice(){
@@ -538,20 +592,18 @@ function renderPractice(){
     const n=sentCount(),b=sentBounds(V.sIdx);
     $("sNew").hidden=!fresh;$("sEdit").hidden=fresh;
     if(fresh){
-      $("sName").textContent=remark?`Sentence ${V.sIdx+1} · re-marking the end`:`Sentence ${V.sIdx+1} · new`;
+      $("sName").textContent=n?`Sentence ${V.sIdx+1} · not saved yet`:"No sentences yet";
       $("sTime").textContent="from "+fmt(b.s);
-      $("sNewText").textContent=V.sIdx===0&&!n?"Tap Listen. The moment the speaker finishes the first sentence, tap Sentence ended. That sentence then loops for you to shadow, and Next › moves on to the following one.":"Tap Listen. The moment the speaker finishes this sentence, tap Sentence ended. It then loops for you to shadow.";
     }else{
-      $("sName").textContent=`Sentence ${V.sIdx+1} of ${n}`;$("sTime").textContent=fmt(b.s)+"–"+fmt(b.e);
+      $("sName").textContent=remark?`Sentence ${V.sIdx+1} · re-marking the end`:`Sentence ${V.sIdx+1} of ${n}`;
+      $("sTime").textContent=fmt(b.s)+"–"+fmt(b.e);
     }
   }
   if(prefs.mode==="grab")renderPhrases();
   if(prefs.mode==="lines")renderLines();
-  // transport
-  for(const id of["btnRec","btnRep"])$(id).disabled=fresh;
-  $("tNext").disabled=fresh;
-  if(fresh)renderListenUI();else if(!busy)$("tPlay").innerHTML="▶ Play <kbd>Space</kbd>";
-  renderReps();renderRec();
+  const noClip=!currentRange();
+  for(const id of["btnRec","btnRep"])$(id).disabled=noClip;
+  renderButtons();renderReps();renderRec();
 }
 function repCount(){
   if(prefs.mode==="sent")return V.sReps[V.sIdx]||0;
@@ -560,47 +612,48 @@ function repCount(){
 }
 function renderReps(){const n=repCount(),d=$("dots");d.innerHTML="";for(let i=0;i<3;i++){const s=document.createElement("span");s.className="dot"+(i<n?" f":"");d.appendChild(s)}if(n>3){const s=document.createElement("span");s.className="note";s.textContent="+"+(n-3);d.appendChild(s)}}
 function addRep(){
-  if(prefs.mode==="sent"){if(!sentCount())return;V.sReps[V.sIdx]=(V.sReps[V.sIdx]||0)+1}
-  else if(prefs.mode==="grab"){const p=V.phrases[V.pIdx|0];if(!p)return;p.reps=(p.reps||0)+1}
-  else{const l=V.lines[V.lineIdx];if(!l)return;l.reps=(l.reps||0)+1}
+  if(!currentRange())return;
+  if(prefs.mode==="sent")V.sReps[V.sIdx]=(V.sReps[V.sIdx]||0)+1;
+  else if(prefs.mode==="grab"){const p=V.phrases[V.pIdx|0];p.reps=(p.reps||0)+1}
+  else{const l=V.lines[V.lineIdx];l.reps=(l.reps||0)+1}
   persist();renderReps();if(prefs.mode==="grab")renderPhrases();if(prefs.mode==="lines")renderLines();
 }
 $("btnRep").addEventListener("click",addRep);
-document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>{stopAll();stopMarking();remark=false;prefs.mode=b.dataset.mode;savePrefs();setStatus("");renderPractice()}));
-function playCurrent(o){if(busy&&!(o&&o.once)){stopAll();setStatus("");return}const r=currentRange();if(!r){setStatus("Nothing to play yet.",true);return}return playRange(r.s,r.e,Object.assign({words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]},o||{}))}
-$("tPlay").addEventListener("click",()=>{if(isNew()){if(marking&&isPlaying()){stopMarking();setStatus("Paused. Listen starts this sentence again from the beginning.");renderPractice()}else startListening();return}playCurrent()});
+document.querySelectorAll(".modes button").forEach(b=>b.addEventListener("click",()=>{stopAll();remark=false;prefs.mode=b.dataset.mode;savePrefs();setStatus("");renderPractice()}));
+function seekToClip(){const r=currentRange();if(r&&ready)player.seekTo(r.s,true)}
 function step(d){
-  stopAll();setStatus("");
+  stopAll();remark=false;setStatus("");
   if(prefs.mode==="sent"){
-    stopMarking();remark=false;
-    V.sIdx=Math.max(0,Math.min(sentCount(),V.sIdx+d));persist();renderPractice();
-    if(d>0&&isNew())startListening(); // moving past the last marked sentence: listen to the next one right away
-    return;
+    V.sIdx=Math.max(0,Math.min(sentCount(),V.sIdx+d));persist();
+    if(isNew()){if(ready)player.seekTo(lastBoundary(),true);setStatus("Not saved yet. Press Space to listen, and Space again where the sentence ends.")}else seekToClip();
   }
-  else if(prefs.mode==="grab"){if(!V.phrases.length)return;V.pIdx=Math.max(0,Math.min(V.phrases.length-1,(V.pIdx|0)+d))}
-  else{V.lineIdx=Math.max(0,Math.min(V.lines.length-1,V.lineIdx+d))}
-  persist();renderPractice();
+  else if(prefs.mode==="grab"){if(!V.phrases.length)return;V.pIdx=Math.max(0,Math.min(V.phrases.length-1,(V.pIdx|0)+d));persist();seekToClip()}
+  else{V.lineIdx=Math.max(0,Math.min(V.lines.length-1,V.lineIdx+d));persist();seekToClip()}
+  renderPractice();
 }
 $("tPrev").addEventListener("click",()=>step(-1));
 $("tNext").addEventListener("click",()=>step(1));
 // grab
 $("grabSel").value=String(prefs.grab);$("grabLen").textContent=prefs.grab;
 $("grabSel").addEventListener("change",e=>{prefs.grab=Number(e.target.value);$("grabLen").textContent=prefs.grab;savePrefs()});
-$("pGrab").addEventListener("click",()=>{
+function grab(){
   if(!ready){setStatus("The video is still loading…",true);return}
-  const cur=player.getCurrentTime();if(cur<0.5){setStatus("Play the video first, then tap Grab right after the phrase.",true);return}
-  V.phrases.push({s:r1(Math.max(0,cur-prefs.grab)),e:r1(cur),reps:0,at:Date.now()});V.pIdx=V.phrases.length-1;persist();renderPractice();playCurrent();
-});
-document.querySelectorAll("[data-pe]").forEach(b=>b.addEventListener("click",()=>{const p=V.phrases[V.pIdx|0];if(!p)return;const[k,d]=b.dataset.pe.split(":");p[k]=r1(Math.max(0,p[k]+Number(d)));if(p.e-p.s<0.5)p.e=p.s+0.5;persist();renderPhrases();playCurrent({once:true})}));
+  const cur=player.getCurrentTime();if(cur<0.5){setStatus("Play the video first, then grab right after the phrase.",true);return}
+  if(freePlay){freePlay=false;clearInterval(track);player.pauseVideo()}
+  V.phrases.push({s:r1(Math.max(0,cur-prefs.grab)),e:r1(cur),reps:0,at:Date.now()});V.pIdx=V.phrases.length-1;persist();renderPractice();
+  setStatus("Clip saved. R repeats it, Space keeps listening.");
+}
+$("pGrab").addEventListener("click",grab);
+document.querySelectorAll("[data-pe]").forEach(b=>b.addEventListener("click",()=>{const p=V.phrases[V.pIdx|0];if(!p)return;const[k,d]=b.dataset.pe.split(":");p[k]=r1(Math.max(0,p[k]+Number(d)));if(p.e-p.s<0.5)p.e=p.s+0.5;persist();renderPhrases();playOnce()}));
 function renderPhrases(){
   const has=V.phrases.length>0;$("pEdit").hidden=!has;
   if(V.pIdx==null||V.pIdx>=V.phrases.length)V.pIdx=V.phrases.length-1;
   const p=V.phrases[V.pIdx|0];if(p)$("pTime").textContent=fmt(p.s)+"–"+fmt(p.e);
-  $("phraseList").innerHTML=has?V.phrases.map((p,i)=>`<div class="phrase" aria-current="${i===V.pIdx}"><button class="btn sm" data-pp="${i}" aria-label="Play">▶</button><button class="btn ghost sm" data-ps="${i}" style="justify-content:flex-start"><span class="time">${fmt(p.s)}–${fmt(p.e)}</span></button><span class="row" style="gap:4px;flex-wrap:nowrap"><span class="r">${p.reps?p.reps+"×":""}</span><button class="btn ghost sm" data-pd="${i}" aria-label="Delete clip">✕</button></span></div>`).join(""):'<p class="note" style="margin:0">No clips yet.</p>';
+  $("phraseList").innerHTML=has?V.phrases.map((p,i)=>`<div class="phrase" aria-current="${i===V.pIdx}"><button class="btn sm" data-pp="${i}" aria-label="Repeat this clip">↻</button><button class="btn ghost sm" data-ps="${i}" style="justify-content:flex-start"><span class="time">${fmt(p.s)}–${fmt(p.e)}</span></button><span class="row" style="gap:4px;flex-wrap:nowrap"><span class="r">${p.reps?p.reps+"×":""}</span><button class="btn ghost sm" data-pd="${i}" aria-label="Delete clip">✕</button></span></div>`).join(""):'<p class="note" style="margin:0">No clips yet.</p>';
 }
 $("phraseList").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.pp!=null){V.pIdx=Number(b.dataset.pp);persist();renderPractice();playCurrent()}
-  else if(b.dataset.ps!=null){V.pIdx=Number(b.dataset.ps);persist();renderPractice()}
+  if(b.dataset.pp!=null){V.pIdx=Number(b.dataset.pp);persist();renderPractice();repeat()}
+  else if(b.dataset.ps!=null){stopAll();V.pIdx=Number(b.dataset.ps);persist();seekToClip();renderPractice()}
   else if(b.dataset.pd!=null){stopAll();V.phrases.splice(Number(b.dataset.pd),1);persist();renderPractice()}});
 // lines
 function renderLines(){
@@ -612,7 +665,7 @@ function renderLines(){
   list.innerHTML=V.lines.map((x,i)=>`<button data-li="${i}" aria-current="${i===V.lineIdx}"><span class="ts">${fmtI(x.t)}</span><span class="t">${esc(x.text)}</span><span class="ts">${x.reps?x.reps+"×":""}</span></button>`).join("");
   const cur=list.querySelector('[aria-current="true"]');if(cur)list.scrollTop=cur.offsetTop-list.clientHeight/3;
 }
-$("lineList").addEventListener("click",e=>{const b=e.target.closest("button[data-li]");if(!b)return;stopAll();V.lineIdx=Number(b.dataset.li);persist();renderPractice()});
+$("lineList").addEventListener("click",e=>{const b=e.target.closest("button[data-li]");if(!b)return;stopAll();V.lineIdx=Number(b.dataset.li);persist();seekToClip();renderPractice()});
 $("lHide").addEventListener("change",renderLines);
 // settings
 $("rate").addEventListener("change",e=>{prefs.rate=Number(e.target.value);savePrefs();try{player.setPlaybackRate(prefs.rate)}catch(_){}});
@@ -628,23 +681,24 @@ function recKey(){const r=currentRange();return r?prefs.mode+":"+r.s+":"+r.e:""}
 function renderRec(){const ok=!!mineUrl&&mineKey===recKey();$("btnMine").disabled=!ok;$("btnCompare").disabled=!ok}
 async function toggleRec(){
   if(mrec&&mrec.state==="recording"){mrec.stop();return}
+  if(!currentRange()){$("recNote").textContent="Save a sentence or clip first, then record yourself saying it.";return}
   if(!navigator.mediaDevices||!window.MediaRecorder){$("recNote").textContent="Recording isn't supported on this browser.";return}
   try{stream=stream||await navigator.mediaDevices.getUserMedia({audio:true})}catch(e){$("recNote").textContent="Microphone access was blocked. Allow it for this site (address bar on Mac, Settings → Safari on iPhone).";return}
   stopAll();chunks=[];const key=recKey();
   mrec=new MediaRecorder(stream);
   mrec.ondataavailable=e=>{if(e.data.size)chunks.push(e.data)};
   mrec.onstop=()=>{if(mineUrl)URL.revokeObjectURL(mineUrl);mineUrl=URL.createObjectURL(new Blob(chunks,{type:mrec.mimeType||"audio/mp4"}));mineKey=key;
-    $("btnRec").setAttribute("aria-pressed","false");$("btnRec").innerHTML="● Record <kbd>R</kbd>";$("recNote").textContent="Recorded. Kept until you move to another clip or close the page.";renderRec()};
-  mrec.start();$("btnRec").setAttribute("aria-pressed","true");$("btnRec").innerHTML="■ Stop <kbd>R</kbd>";$("recNote").textContent="Recording… say the clip, then tap Stop.";
+    $("btnRec").setAttribute("aria-pressed","false");$("btnRec").innerHTML="● Record <kbd>V</kbd>";$("recNote").textContent="Recorded. Kept until you move to another clip or close the page.";renderRec()};
+  mrec.start();$("btnRec").setAttribute("aria-pressed","true");$("btnRec").innerHTML="■ Stop <kbd>V</kbd>";$("recNote").textContent="Recording… say the clip, then press V or tap Stop.";
 }
 $("btnRec").addEventListener("click",toggleRec);
 const playMine=()=>new Promise(r=>{if(!mineUrl)return r();aud.src=mineUrl;aud.onended=r;aud.onerror=r;aud.play().catch(r)});
 $("btnMine").addEventListener("click",()=>{stopAll();playMine()});
-$("btnCompare").addEventListener("click",async()=>{await playCurrent({once:true});await new Promise(x=>setTimeout(x,300));setStatus("Now yours…");await playMine();setStatus("")});
+$("btnCompare").addEventListener("click",async()=>{await playOnce();await new Promise(x=>setTimeout(x,300));setStatus("Now yours…");await playMine();setStatus("")});
 
 // ---------- keyboard (Mac) ----------
-// Clicking the video moves keyboard focus into YouTube's iframe, which then swallows every key
-// (and uses Space/M/arrows for its own shortcuts). Pull focus back to the page right away.
+// Clicking the video moves keyboard focus into YouTube's iframe, which then swallows every key.
+// Pull focus back to the page right away.
 window.addEventListener("blur",()=>{setTimeout(()=>{const a=document.activeElement;if(a&&a.tagName==="IFRAME"&&!$("t-practice").hidden){a.blur();window.focus()}},0)});
 // A settings dropdown keeps focus after you pick a value; release it so shortcuts work again.
 document.querySelectorAll("#t-practice select").forEach(sel=>sel.addEventListener("change",()=>setTimeout(()=>sel.blur(),0)));
@@ -655,17 +709,13 @@ document.addEventListener("keydown",e=>{
   const tag=(e.target.tagName||"").toLowerCase();
   if(["input","textarea","select"].includes(tag)||e.metaKey||e.ctrlKey||e.altKey)return;
   const k=e.key.toLowerCase();
-  if(isNew()){
-    if(k==="m"||e.key==="Enter"){e.preventDefault();addMark()}
-    else if(e.key===" "){e.preventDefault();$("tPlay").click()}
-    else if(e.key==="ArrowLeft"){e.preventDefault();step(-1)}
-    return;
-  }
-  if(e.key===" "){e.preventDefault();$("tPlay").click()}
+  if(e.key===" "){e.preventDefault();togglePlay()}
+  else if(k==="r"){e.preventDefault();repeat()}
   else if(e.key==="ArrowRight"){e.preventDefault();step(1)}
   else if(e.key==="ArrowLeft"){e.preventDefault();step(-1)}
   else if(e.key==="Enter"){e.preventDefault();addRep()}
-  else if(k==="r"){toggleRec()}
+  else if(k==="v"){e.preventDefault();toggleRec()}
+  else if(k==="g"&&prefs.mode==="grab"){e.preventDefault();grab()}
 });
 
 // ---------- summary ----------
