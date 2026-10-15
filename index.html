@@ -131,6 +131,15 @@ details summary{cursor:pointer;font-weight:700;font-size:15px}
 
 .bigplay4{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(0,1fr) 52px;gap:8px}
 .bigplay4 .btn{min-height:56px;font-size:17px;padding-inline:8px}
+.sentlist{max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.srow{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto auto;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line)}
+.srow:last-child{border-bottom:0}
+.srow[aria-current="true"]{background:var(--accent-soft)}
+.srow .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
+.srow .pick{border:0;background:transparent;text-align:left;padding:6px 4px;cursor:pointer;font-family:var(--f-mono);font-size:14px;color:var(--ink);font-variant-numeric:tabular-nums;min-width:0}
+.srow .r{font-family:var(--f-mono);font-size:12px;color:var(--rep);min-width:24px;text-align:right}
+.srow .btn{min-height:34px;padding:4px 10px}
+.srow.new .pick{color:var(--muted);font-style:italic}
 ol.howto{margin:0;padding-left:20px;display:grid;gap:6px;font-size:15px}
 .huge{min-height:96px;font-size:22px;border-radius:16px}
 .huge.flash{filter:brightness(1.25);transform:scale(.98)}
@@ -276,6 +285,11 @@ ol.steps li{margin-bottom:6px}
         </div>
         <div class="status" id="status"></div>
         <span class="note" id="recNote"></span>
+      </div>
+
+      <div class="card stack" id="sListWrap" hidden>
+        <div class="row" style="justify-content:space-between"><span class="eyebrow">Saved sentences</span><span class="note" id="sListInfo"></span></div>
+        <div class="sentlist" id="sentList"></div>
       </div>
 
       <details class="card">
@@ -590,6 +604,39 @@ function onPlayerState(st){
   renderButtons();
 }
 
+// ---------- saved sentence list ----------
+let sDelArm=null,sDelTimer=null;
+function renderSentList(){
+  const n=sentCount();$("sListWrap").hidden=!n;if(!n)return;
+  $("sListInfo").textContent=`${n} sentence${n>1?"s":""} · ${fmtI(V.firstStart||0)}–${fmtI(V.marks[n-1])}`;
+  let h="";
+  for(let i=0;i<n;i++){
+    const b=sentBounds(i),reps=V.sReps[i]||0;
+    h+=`<div class="srow" aria-current="${i===V.sIdx}"><span class="n">${i+1}</span><button class="pick" data-sp="${i}">${fmt(b.s)} – ${fmt(b.e)} <span class="note">(${(b.e-b.s).toFixed(1)}s)</span></button><span class="r">${reps?reps+"×":""}</span><button class="btn sm" data-sr="${i}" aria-label="Repeat sentence ${i+1}">↻</button><button class="btn sm ghost" data-sd="${i}" aria-label="Delete the stop point after sentence ${i+1}">${sDelArm===i?"Delete?":"✕"}</button></div>`;
+  }
+  h+=`<div class="srow new"><span class="n">${n+1}</span><button class="pick" data-sp="${n}">from ${fmt(V.marks[n-1])} · not saved yet</button><span></span><span></span><span></span></div>`;
+  const list=$("sentList");list.innerHTML=h;
+  const cur=list.querySelector('[aria-current="true"]');if(cur){const lr=list.getBoundingClientRect(),cr=cur.getBoundingClientRect();if(cr.top<lr.top||cr.bottom>lr.bottom)list.scrollTop+=cr.top-lr.top-lr.height/3}
+}
+function deleteStop(i){
+  // Removing stop point i joins sentence i with the one after it.
+  V.marks.splice(i,1);
+  const nr={};for(const[k,v]of Object.entries(V.sReps)){const n=Number(k);if(n===i)continue;nr[n>i?n-1:n]=v}V.sReps=nr;
+  if(V.sIdx>i)V.sIdx--;V.sIdx=Math.min(V.sIdx,sentCount());persist();
+}
+$("sentList").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.sp!=null){stopAll();remark=false;V.sIdx=Number(b.dataset.sp);persist();if(isNew()){if(ready)player.seekTo(lastBoundary(),true)}else seekToClip();setStatus("");renderPractice()}
+  else if(b.dataset.sr!=null){stopAll();remark=false;V.sIdx=Number(b.dataset.sr);persist();renderPractice();repeat()}
+  else if(b.dataset.sd!=null){
+    const i=Number(b.dataset.sd);
+    if(sDelArm!==i){sDelArm=i;clearTimeout(sDelTimer);sDelTimer=setTimeout(()=>{sDelArm=null;renderSentList()},3000);renderSentList();return}
+    sDelArm=null;clearTimeout(sDelTimer);stopAll();deleteStop(i);
+    setStatus(i<sentCount()?`Removed that stop point. Sentence ${i+1} now runs to ${fmt(V.marks[i])}.`:"Removed the last stop point.");
+    renderPractice();
+  }
+});
+
 // ---------- practice render ----------
 function renderPractice(){
   ensurePlayer();
@@ -613,6 +660,7 @@ function renderPractice(){
       $("sTime").textContent=fmt(b.s)+"–"+fmt(b.e);
     }
   }
+  if(prefs.mode==="sent")renderSentList();else $("sListWrap").hidden=true;
   if(prefs.mode==="grab")renderPhrases();
   if(prefs.mode==="lines")renderLines();
   const noClip=!currentRange();
