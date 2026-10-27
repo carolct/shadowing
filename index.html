@@ -131,6 +131,10 @@ details summary{cursor:pointer;font-weight:700;font-size:15px}
 
 .bigplay4{display:grid;grid-template-columns:52px minmax(0,1fr) minmax(0,1fr) 52px;gap:8px}
 .bigplay4 .btn{min-height:56px;font-size:17px;padding-inline:8px}
+.bm{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:999px;background:var(--rep);color:var(--rep-ink);font-weight:700;text-decoration:none;cursor:grab;white-space:nowrap;margin-left:4px}
+.srow .sub{display:block;font-family:var(--f-read);font-size:15px;color:var(--muted);white-space:normal;line-height:1.35;margin-top:2px}
+#sSub{min-height:0}
+#sSub.hidden{color:transparent;text-shadow:0 0 12px var(--faint)}
 .sentlist{max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
 .srow{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto auto;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line)}
 .srow:last-child{border-bottom:0}
@@ -194,6 +198,19 @@ ol.steps li{margin-bottom:6px}
         </div>
       </details>
     </div>
+    <div class="card stack" id="subsCard">
+      <div>
+        <div class="eyebrow">Subtitles · Mac Chrome</div>
+        <h2 style="font-size:19px;margin-top:4px">Bring in the video's subtitles</h2>
+        <p class="note" style="margin:6px 0 0">With subtitles, sentences can be cut automatically and each sentence shows its text.</p>
+      </div>
+      <ol class="howto">
+        <li>Once: drag this button to the Chrome bookmarks bar (⌘⇧B shows the bar). <a class="bm" id="bookmarklet" href="#">⇢ Send to Shadowing</a></li>
+        <li>Open the video on youtube.com in Chrome and click the bookmark.</li>
+        <li>This page opens the video with its subtitles. Press <b>✂ Auto-cut</b> to make the sentences.</li>
+      </ol>
+      <div class="msg" id="importMsg" hidden></div>
+    </div>
     <div class="stack">
       <div class="eyebrow">Your videos</div>
       <div class="vidlist" id="vidList"></div>
@@ -215,6 +232,15 @@ ol.steps li{margin-bottom:6px}
       <!-- sentences: mark as you go -->
       <div class="card stack" id="m-sent" hidden>
         <div class="seg-title"><b id="sName">Sentence 1</b><span class="time" id="sTime"></span></div>
+        <div id="sSubWrap" class="stack" hidden>
+          <p class="linetext" id="sSub"></p>
+          <label class="switch">Hide the text (shadow from memory)<input type="checkbox" id="sHide"></label>
+        </div>
+        <div id="autoRow" class="row" hidden>
+          <button class="btn sm repc" id="btnAuto">✂ Auto-cut from subtitles</button>
+          <span class="note" id="autoInfo"></span>
+        </div>
+        <div class="confirmrow" id="autoConfirm" hidden>Replace your current sentences with automatic ones? <button class="btn sm" id="autoYes">Replace</button><button class="btn sm ghost" id="autoNo">Keep mine</button></div>
         <div id="sNew" class="stack" hidden>
           <ol class="howto">
             <li><b>Play</b> (Space) to listen.</li>
@@ -345,7 +371,7 @@ const r1=x=>Math.round(x*10)/10;
 const KEY="sm.videos.v1",CUR="sm.current.v1",PREF="sm.prefs.v1";
 const load=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}};
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
-function fixup(v){v.marks=v.marks||[];v.sIdx=v.sIdx|0;v.sReps=v.sReps||{};v.phrases=v.phrases||[];v.lines=v.lines||[];v.lineIdx=v.lineIdx|0;v.target=v.target||120;v.summary=v.summary||"";return v}
+function fixup(v){v.marks=v.marks||[];v.sIdx=v.sIdx|0;v.sReps=v.sReps||{};v.phrases=v.phrases||[];v.lines=v.lines||[];v.lineIdx=v.lineIdx|0;v.target=v.target||120;v.summary=v.summary||"";v.subs=v.subs||[];return v}
 let vids=load(KEY,[]).map(fixup);
 let V=vids.find(v=>v.id===load(CUR,null))||null;
 let prefs=Object.assign({rate:1,loops:3,gap:1,cc:"on",mode:"sent",grab:4},load(PREF,{}));
@@ -523,7 +549,8 @@ function onFreePause(){
   freePlay=false;clearInterval(track);
   const t=player.getCurrentTime();
   if(prefs.mode==="sent"){
-    const cut=r1(Math.max(0,t-END_PAD)); // Repeat plays to cut+END_PAD, i.e. exactly where you paused
+    let cut=r1(Math.max(0,t-END_PAD)); // Repeat plays to cut+END_PAD, i.e. exactly where you paused
+    if(V.subs.length){const i0=sentAt(cut),lo=(i0>0?V.marks[i0-1]:(V.firstStart||0))+0.5,hi=i0<sentCount()?V.marks[i0]+0.01:1e9;cut=snapToSub(cut,lo,hi)}
     if(remark){
       const i=V.sIdx,lo=sentBounds(i).s+0.5,hi=i+1<sentCount()?V.marks[i+1]-0.4:1e9;
       remark=false;
@@ -577,9 +604,10 @@ function repeat(){
   if(freePlay&&isPlaying())pauseFree(); // pressing R while listening = cut here, then repeat
   const r=currentRange();
   if(!r){setStatus(prefs.mode==="sent"?"No sentence yet. Press Space to listen, and Space again where the sentence ends.":"Nothing to repeat yet.",true);return}
-  return playRange(r.s,r.e,{words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]});
+  return playRange(r.s,r.e,{words:clipWords()});
 }
-function playOnce(){const r=currentRange();if(!r)return Promise.resolve();return playRange(r.s,r.e,{once:true,words:prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:[]})}
+function clipWords(){return prefs.mode==="lines"?[...document.querySelectorAll("#lineText .w")]:prefs.mode==="sent"?[...document.querySelectorAll("#sSub .w")]:[]}
+function playOnce(){const r=currentRange();if(!r)return Promise.resolve();return playRange(r.s,r.e,{once:true,words:clipWords()})}
 $("tPlay").addEventListener("click",togglePlay);
 $("tRepeat").addEventListener("click",repeat);
 
@@ -604,6 +632,103 @@ function onPlayerState(st){
   renderButtons();
 }
 
+// ---------- subtitles (imported from YouTube on a Mac) ----------
+// V.subs = [{t, text}] — YouTube transcript segments: start time + text, no end times.
+function subsIn(s,e){if(!V.subs.length)return"";return V.subs.filter(x=>x.t>=s-0.35&&x.t<e-0.35).map(x=>x.text).join(" ").replace(/\s+/g," ").trim()}
+function snapToSub(cut,lo,hi){
+  // When subtitles exist, move a cut to the nearest subtitle boundary within 1 second.
+  if(!V.subs.length)return cut;
+  let best=cut,bd=1.01;for(const x of V.subs){const d=Math.abs(x.t-cut);if(d<bd&&x.t>lo&&x.t<hi){bd=d;best=x.t}}
+  return r1(best);
+}
+function parseSegs(raw){
+  const rows=String(raw).replace(/\r/g,"").split("\n").map(x=>x.trim());const out=[];let t=null;
+  for(const r of rows){if(!r)continue;if(TS_RE.test(r)){t=tsToSec(r);continue}if(t!=null){const tx=clean(r);if(tx)out.push({t,text:tx});t=null}}
+  return out;
+}
+function autoMarks(){
+  const S=V.subs;if(!S.length)return null;
+  const dur=ready&&player.getDuration()?player.getDuration():S[S.length-1].t+4;
+  const punct=S.filter(x=>/[.!?]["'”’)]?$/.test(x.text)).length>=Math.max(2,S.length*0.15);
+  const marks=[];let words=0,start=S[0].t;
+  for(let i=0;i<S.length;i++){
+    words+=S[i].text.split(/\s+/).length;
+    const next=S[i+1],segW=S[i].text.split(/\s+/).length,spoken=S[i].t+Math.max(2.5,segW*0.5+0.8);
+    // Normally a part ends where the next subtitle starts; only after a long silence (or at the very end) cut sooner.
+    const end=next?(next.t-S[i].t>8?Math.max(spoken,S[i].t+3):next.t):Math.min(dur,spoken+0.7);
+    const sentEnd=punct?/[.!?]["'”’)]?$/.test(S[i].text):(words>=10||end-start>=5.5);
+    if(sentEnd||!next){if(end-start>=0.8){marks.push(r1(end));words=0;start=end}}
+  }
+  return{marks,first:r1(Math.max(0,S[0].t-0.1)),punct};
+}
+function applyAuto(){
+  const a=autoMarks();if(!a||!a.marks.length){setStatus("No subtitles to cut from.",true);return}
+  stopAll();remark=false;V.marks=a.marks;V.firstStart=a.first;V.sIdx=0;V.sReps={};persist();
+  setStatus(`Cut into ${a.marks.length} ${a.punct?"sentences using the subtitle punctuation":"parts using the subtitle lines (these captions have no punctuation, so parts may not be whole sentences)"}. Fix any cut with End −/+ or ✕.`);
+  if(ready)player.seekTo(V.firstStart,true);
+  renderPractice();
+}
+$("btnAuto").addEventListener("click",()=>{if(sentCount()){$("autoConfirm").hidden=false;return}applyAuto()});
+$("autoYes").addEventListener("click",()=>{$("autoConfirm").hidden=true;applyAuto()});
+$("autoNo").addEventListener("click",()=>{$("autoConfirm").hidden=true});
+$("sHide").addEventListener("change",()=>renderPractice());
+
+// Bookmarklet: runs on youtube.com, opens the transcript panel, collects every line and posts it here.
+function bookmarkletSource(STUDIO){
+  var sleep=function(ms){return new Promise(function(r){setTimeout(r,ms)})};
+  var vid=new URLSearchParams(location.search).get("v");
+  if(!/(^|\.)youtube\.com$/.test(location.hostname)||!vid){alert("Open a YouTube video page first, then click this bookmark.");return}
+  var w=window.open(STUDIO+"#import","shadowing-studio");
+  var send=function(msg){if(!w)return;var n=0,ack=false;
+    var onAck=function(e){if(e.data==="shadowing-got"){ack=true;window.removeEventListener("message",onAck)}};
+    window.addEventListener("message",onAck);
+    var iv=setInterval(function(){if(ack||n++>75){clearInterval(iv);return}try{w.postMessage(msg,"*")}catch(e){}},400)};
+  (async function(){
+    var title=document.title.replace(/ - YouTube$/,"").replace(/^\(\d+\)\s*/,"");
+    var segs=function(){return Array.prototype.slice.call(document.querySelectorAll("ytd-transcript-segment-renderer"))};
+    if(!segs().length){
+      var ex=document.querySelector("#description-inline-expander #expand");if(ex)ex.click();
+      await sleep(700);
+      var re=/transcript|轉錄|文字稿|字幕記錄|转录|文字记录|transcripción|transcription|transkript|文字起こし|스크립트/i;
+      var btn=Array.prototype.slice.call(document.querySelectorAll("ytd-video-description-transcript-section-renderer button, button")).find(function(b){return re.test((b.getAttribute("aria-label")||"")+" "+(b.innerText||""))});
+      if(!btn){send({type:"shadowing-error",videoId:vid,message:"This video has no transcript button, so it probably has no subtitles."});return}
+      btn.click();
+      for(var i=0;i<80&&!segs().length;i++)await sleep(250);
+    }
+    var list=segs();
+    if(!list.length){send({type:"shadowing-error",videoId:vid,message:"The transcript didn't load. On YouTube, open “Show transcript” yourself, wait for the lines, then click the bookmark again."});return}
+    var seen={},rows=[];
+    list.forEach(function(s){var t=((s.querySelector(".segment-timestamp")||{}).textContent||"").trim();var x=((s.querySelector(".segment-text")||{}).textContent||"").replace(/\s+/g," ").trim();var k=t+"|"+x;if(t&&x&&!seen[k]){seen[k]=1;rows.push(t+"\n"+x)}});
+    send({type:"shadowing-import",videoId:vid,title:title,transcript:rows.join("\n")});
+  })();
+}
+const studioUrl=location.origin+location.pathname;
+$("bookmarklet").href="javascript:"+encodeURIComponent("("+bookmarkletSource.toString()+")("+JSON.stringify(studioUrl)+");void 0");
+$("bookmarklet").addEventListener("click",e=>{e.preventDefault();showImportMsg("Drag this button to the bookmarks bar, then click it on a YouTube video page.",true)});
+try{window.name="shadowing-studio"}catch(_){}
+function showImportMsg(t,err){const m=$("importMsg");m.textContent=t;m.hidden=!t;m.classList.toggle("err",!!err)}
+let lastImport="";
+window.addEventListener("message",e=>{
+  if(!/^https:\/\/(www\.|m\.)?youtube\.com$/.test(e.origin))return;
+  const d=e.data;if(!d||typeof d!=="object")return;
+  try{e.source&&e.source.postMessage("shadowing-got","*")}catch(_){}
+  if(d.type==="shadowing-error"){tab("videos");showImportMsg(String(d.message||"Import failed."),true);return}
+  if(d.type!=="shadowing-import")return;
+  const key=d.videoId+"|"+String(d.transcript||"").length;if(key===lastImport)return;lastImport=key;
+  const id=videoIdFrom(String(d.videoId||""));if(!id)return;
+  const segs=parseSegs(d.transcript||"");
+  if(!segs.length){tab("videos");showImportMsg("The subtitles came through empty. Wait until the transcript panel shows lines, then click the bookmark again.",true);return}
+  let v=vids.find(x=>x.id===id);if(!v)v=fixup({id,title:"",created:Date.now(),updated:Date.now()});
+  v.subs=segs;if(d.title&&!v.title)v.title=String(d.title).slice(0,200);
+  V=v;persist();prefs.mode="sent";savePrefs();
+  try{history.replaceState(null,"",studioUrl)}catch(_){}
+  tab("practice");
+  setStatus(`Imported ${segs.length} subtitle lines.${sentCount()?" Press ✂ Auto-cut to replace your sentences, or keep them — each one now shows its text.":" Press ✂ Auto-cut to make the sentences."}`);
+  window.focus();
+});
+function announceReady(){if(location.hash==="#import"&&window.opener){try{window.opener.postMessage("shadowing-ready","*")}catch(e){}}}
+announceReady();window.addEventListener("hashchange",announceReady);
+
 // ---------- saved sentence list ----------
 let sDelArm=null,sDelTimer=null;
 function renderSentList(){
@@ -612,7 +737,7 @@ function renderSentList(){
   let h="";
   for(let i=0;i<n;i++){
     const b=sentBounds(i),reps=V.sReps[i]||0;
-    h+=`<div class="srow" aria-current="${i===V.sIdx}"><span class="n">${i+1}</span><button class="pick" data-sp="${i}">${fmt(b.s)} – ${fmt(b.e)} <span class="note">(${(b.e-b.s).toFixed(1)}s)</span></button><span class="r">${reps?reps+"×":""}</span><button class="btn sm" data-sr="${i}" aria-label="Repeat sentence ${i+1}">↻</button><button class="btn sm ghost" data-sd="${i}" aria-label="Delete the stop point after sentence ${i+1}">${sDelArm===i?"Delete?":"✕"}</button></div>`;
+    h+=`<div class="srow" aria-current="${i===V.sIdx}"><span class="n">${i+1}</span><button class="pick" data-sp="${i}">${fmt(b.s)} – ${fmt(b.e)} <span class="note">(${(b.e-b.s).toFixed(1)}s)</span>${V.subs.length?`<span class="sub">${esc(subsIn(b.s,b.e)||"—")}</span>`:""}</button><span class="r">${reps?reps+"×":""}</span><button class="btn sm" data-sr="${i}" aria-label="Repeat sentence ${i+1}">↻</button><button class="btn sm ghost" data-sd="${i}" aria-label="Delete the stop point after sentence ${i+1}">${sDelArm===i?"Delete?":"✕"}</button></div>`;
   }
   h+=`<div class="srow new"><span class="n">${n+1}</span><button class="pick" data-sp="${n}">from ${fmt(V.marks[n-1])} · not saved yet</button><span></span><span></span><span></span></div>`;
   const list=$("sentList");list.innerHTML=h;
@@ -660,7 +785,15 @@ function renderPractice(){
       $("sTime").textContent=fmt(b.s)+"–"+fmt(b.e);
     }
   }
-  if(prefs.mode==="sent")renderSentList();else $("sListWrap").hidden=true;
+  if(prefs.mode==="sent"){
+    renderSentList();
+    const hasSubs=V.subs.length>0;
+    $("autoRow").hidden=!hasSubs;
+    if(hasSubs)$("autoInfo").textContent=`${V.subs.length} subtitle lines`;
+    const txt=hasSubs&&!isNew()?subsIn(sentBounds(V.sIdx).s,sentBounds(V.sIdx).e):"";
+    $("sSubWrap").hidden=!txt;
+    if(txt){const el=$("sSub");el.className="linetext"+($("sHide").checked?" hidden":"");el.innerHTML=txt.split(/\s+/).map(w=>`<span class="w">${esc(w)}</span>`).join(" ")}
+  }else $("sListWrap").hidden=true;
   if(prefs.mode==="grab")renderPhrases();
   if(prefs.mode==="lines")renderLines();
   const noClip=!currentRange();
@@ -782,8 +915,9 @@ document.addEventListener("keydown",e=>{
 
 // ---------- summary ----------
 const words=s=>(s.toLowerCase().match(/[a-z0-9']+/g)||[]);
+function transcriptLines(){return V.lines.length?V.lines:V.subs}
 function copiedAnalysis(sum){
-  const tw=words(V.lines.map(l=>l.text).join(" ")),N=5,g=new Set();for(let i=0;i+N<=tw.length;i++)g.add(tw.slice(i,i+N).join(" "));
+  const tw=words(transcriptLines().map(l=>l.text).join(" ")),N=5,g=new Set();for(let i=0;i+N<=tw.length;i++)g.add(tw.slice(i,i+N).join(" "));
   const toks=[];const re=/[A-Za-z0-9']+/g;let m;while((m=re.exec(sum)))toks.push({w:m[0].toLowerCase(),s:m.index,e:m.index+m[0].length});
   const f=new Array(toks.length).fill(false);for(let i=0;i+N<=toks.length;i++)if(g.has(toks.slice(i,i+N).map(t=>t.w).join(" ")))for(let k=i;k<i+N;k++)f[k]=true;
   let h="",p=0,o=false;toks.forEach((t,i)=>{h+=esc(sum.slice(p,t.s));if(f[i]&&!o){h+="<mark>";o=true}h+=esc(sum.slice(t.s,t.e));if(o&&!f[i+1]){h+="</mark>";o=false}p=t.e});if(o)h+="</mark>";h+=esc(sum.slice(p));
@@ -792,7 +926,7 @@ function copiedAnalysis(sum){
 function meters(){
   const sum=$("summary").value,n=words(sum).length,t=Number($("target").value);
   $("wc").textContent=`${n} / ${t} words`;$("wcBar").style.width=Math.min(100,100*n/t)+"%";
-  const hasT=V.lines.length>0;$("copiedWrap").hidden=!hasT;
+  const hasT=transcriptLines().length>0;$("copiedWrap").hidden=!hasT;
   if(hasT){const a=copiedAnalysis(sum);$("copyPct").textContent=`Copied: ${a.pct}%`;$("copyPct").style.color=a.pct>25?"var(--bad)":a.pct>10?"var(--warn)":"";$("copiedView").innerHTML=a.h||'<span class="note">Nothing yet.</span>'}else $("copyPct").textContent="";
 }
 function renderSummary(){$("sumHeading").textContent=V.title?`What was “${V.title}” about?`:"What was the video about?";$("summary").value=V.summary||"";$("target").value=String(V.target||120);meters()}
@@ -801,7 +935,7 @@ $("target").addEventListener("change",()=>{V.target=Number($("target").value);pe
 $("btnCopy").addEventListener("click",async()=>{
   const sum=$("summary").value.trim();if(words(sum).length<15){$("copyNote").textContent="Write a few sentences first.";return}
   const link="https://www.youtube.com/watch?v="+V.id;
-  let tr=V.lines.length?V.lines.map(l=>"["+fmtI(l.t)+"] "+l.text).join("\n"):"";if(tr.length>60000)tr=tr.slice(0,60000)+"\n[truncated]";
+  let tr=transcriptLines().length?transcriptLines().map(l=>"["+fmtI(l.t)+"] "+l.text).join("\n"):"";if(tr.length>60000)tr=tr.slice(0,60000)+"\n[truncated]";
   const prompt=`You are my English coach. I'm an advanced adult learner, a professional and non-native speaker. I watched a YouTube video, practiced it by shadowing, then wrote this summary from memory in my own words.
 
 Please give me:
