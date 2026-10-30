@@ -146,6 +146,8 @@ details summary{cursor:pointer;font-weight:700;font-size:15px}
 .srow label.n{display:flex;align-items:center;gap:4px;cursor:pointer}
 .srow .selbox{width:16px;height:16px;margin:0;accent-color:var(--accent)}
 .srow{grid-template-columns:48px minmax(0,1fr) auto auto auto auto!important}
+.slist-in{border-top:1px solid var(--line);padding-top:14px}
+.slist-in .sentlist{max-height:34vh}
 .sentlist{max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
 .srow{display:grid;grid-template-columns:34px minmax(0,1fr) auto auto auto;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line)}
 .srow:last-child{border-bottom:0}
@@ -279,6 +281,16 @@ ol.steps li{margin-bottom:6px}
           <div id="sEditor"></div>
           <div class="confirmrow" id="sResetConfirm" hidden>Delete all sentence marks for this video? <button class="btn sm" id="sResetYes">Delete</button><button class="btn sm ghost" id="sResetNo">Keep</button></div>
         </div>
+        <div class="stack slist-in" id="sListWrap" hidden>
+          <div class="row" style="justify-content:space-between"><span class="eyebrow">Saved sentences</span><span class="note" id="sListInfo"></span></div>
+          <div class="combinebar" id="combineBar" hidden>
+            <span id="combineInfo"></span>
+            <button class="btn sm primary" id="btnCombine">⇲ Combine</button>
+            <button class="btn sm ghost" id="btnSelClear">Clear</button>
+          </div>
+          <div class="sentlist" id="sentList"></div>
+          <p class="note" style="margin:0">Tick the boxes of two or more sentences to combine them. Everything from the first to the last ticked sentence becomes one.</p>
+        </div>
       </div>
 
       <!-- grab -->
@@ -328,17 +340,6 @@ ol.steps li{margin-bottom:6px}
         </div>
         <div class="status" id="status"></div>
         <span class="note" id="recNote"></span>
-      </div>
-
-      <div class="card stack" id="sListWrap" hidden>
-        <div class="row" style="justify-content:space-between"><span class="eyebrow">Saved sentences</span><span class="note" id="sListInfo"></span></div>
-        <div class="combinebar" id="combineBar" hidden>
-          <span id="combineInfo"></span>
-          <button class="btn sm primary" id="btnCombine">⇲ Combine</button>
-          <button class="btn sm ghost" id="btnSelClear">Clear</button>
-        </div>
-        <div class="sentlist" id="sentList"></div>
-        <p class="note" style="margin:0">Tick the boxes of two or more sentences to combine them. Everything from the first to the last ticked sentence becomes one.</p>
       </div>
 
       <details class="card">
