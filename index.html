@@ -266,10 +266,12 @@ ol.steps li{margin-bottom:6px}
             <button class="btn" data-sn="e:0.2">End +</button>
           </div>
           <div class="row">
+            <button class="btn sm primary" id="sEditBtn">✎ Edit sentence</button>
             <button class="btn sm" id="sRemark">↺ Re-mark the end</button>
             <button class="btn sm ghost" id="sMerge">Join with next</button>
             <button class="btn sm ghost" id="sReset">Start over</button>
           </div>
+          <div id="sEditor"></div>
           <div class="confirmrow" id="sResetConfirm" hidden>Delete all sentence marks for this video? <button class="btn sm" id="sResetYes">Delete</button><button class="btn sm ghost" id="sResetNo">Keep</button></div>
         </div>
       </div>
@@ -755,12 +757,6 @@ function renderSentList(){
     const b=sentBounds(i),reps=V.sReps[i]||0;
     const txt=sentText(i),custom=typeof V.sText[i]==="string";
     h+=`<div class="srow" aria-current="${i===V.sIdx}"><span class="n">${i+1}</span><button class="pick" data-sp="${i}">${fmt(b.s)} – ${fmt(b.e)} <span class="note">(${(b.e-b.s).toFixed(1)}s)${custom?" · edited":""}</span>${txt||V.subs.length?`<span class="sub">${esc(txt||"—")}</span>`:""}</button><span class="r">${reps?reps+"×":""}</span><button class="btn sm ghost" data-se="${i}" aria-label="Edit sentence ${i+1}">✎</button><button class="btn sm" data-sr="${i}" aria-label="Repeat sentence ${i+1}">↻</button><button class="btn sm ghost" data-sd="${i}" aria-label="Delete the stop point after sentence ${i+1}">${sDelArm===i?"Delete?":"✕"}</button></div>`;
-    if(sEditIdx===i){
-      h+=`<div class="sedit"><label class="f">Text<textarea id="seText" rows="3">${esc(txt)}</textarea></label>
-        <div class="grid2t"><label class="f">Start<input type="text" id="seStart" value="${fmt(b.s)}" inputmode="decimal"></label><label class="f">End<input type="text" id="seEnd" value="${fmt(b.e)}" inputmode="decimal"></label></div>
-        <div class="row"><button class="btn sm primary" data-ses="${i}">Save</button><button class="btn sm" data-sep="${i}">▶ Hear it</button><button class="btn sm ghost" data-sec="1">Cancel</button>${custom&&V.subs.length?`<button class="btn sm ghost" data-ser="${i}">Use subtitles again</button>`:""}</div>
-        <span class="note" id="seMsg">Times look like 1:05.3. Changing a start or end also moves the neighbouring sentence.</span></div>`;
-    }
   }
   h+=`<div class="srow new"><span class="n">${n+1}</span><button class="pick" data-sp="${n}">from ${fmt(V.marks[n-1])} · not saved yet</button><span></span><span></span><span></span><span></span></div>`;
   const list=$("sentList");list.innerHTML=h;
@@ -774,6 +770,24 @@ function parseTime(str){
 }
 function shiftKeys(obj,from,by,drop){const o={};for(const[k,v]of Object.entries(obj)){const n=Number(k);if(drop!=null&&n===drop)continue;o[n>=from?n+by:n]=v}return o}
 let sEditIdx=null;
+function renderEditor(force){
+  const box=$("sEditor");if(!box)return;
+  if(sEditIdx!=null&&(prefs.mode!=="sent"||isNew()||sEditIdx!==V.sIdx))sEditIdx=null;
+  $("sEditBtn").textContent=sEditIdx!=null?"✎ Close editor":"✎ Edit sentence";
+  if(sEditIdx==null){box.innerHTML="";box.dataset.idx="";return}
+  if(!force&&box.dataset.idx===String(sEditIdx))return; // keep what you're typing
+  const i=sEditIdx,b=sentBounds(i),txt=sentText(i),custom=typeof V.sText[i]==="string";
+  box.dataset.idx=String(i);
+  box.innerHTML=`<div class="sedit"><label class="f">Text<textarea id="seText" rows="3">${esc(txt)}</textarea></label>
+    <div class="grid2t"><label class="f">Start<input type="text" id="seStart" value="${fmt(b.s)}" inputmode="decimal"></label><label class="f">End<input type="text" id="seEnd" value="${fmt(b.e)}" inputmode="decimal"></label></div>
+    <div class="row"><button class="btn sm primary" data-ses="${i}">Save</button><button class="btn sm" data-sep="${i}">▶ Hear it</button><button class="btn sm ghost" data-sec="1">Cancel</button>${custom&&V.subs.length?`<button class="btn sm ghost" data-ser="${i}">Use subtitles again</button>`:""}</div>
+    <span class="note" id="seMsg">Times look like 1:05.3. Changing a start or end also moves the neighbouring sentence.</span></div>`;
+}
+function openEditor(i){
+  stopAll();remark=false;V.sIdx=i;persist();sEditIdx=i;renderPractice();
+  $("m-sent").scrollIntoView({block:"start",behavior:"smooth"});
+  const ta=$("seText");if(ta){ta.focus({preventScroll:true});ta.setSelectionRange(ta.value.length,ta.value.length)}
+}
 function deleteStop(i){
   // Removing stop point i joins sentence i with the one after it.
   const hadCustom=typeof V.sText[i]==="string"||typeof V.sText[i+1]==="string";
@@ -802,11 +816,7 @@ function saveSentEdit(i,justPreview){
 }
 $("sentList").addEventListener("click",e=>{
   const b=e.target.closest("button");if(!b)return;
-  if(b.dataset.se!=null){const i=Number(b.dataset.se);sEditIdx=sEditIdx===i?null:i;stopAll();V.sIdx=i;persist();renderPractice();const ta=$("seText");if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length)}return}
-  if(b.dataset.sec!=null){sEditIdx=null;renderSentList();return}
-  if(b.dataset.ses!=null){const i=Number(b.dataset.ses);if(saveSentEdit(i,false)){sEditIdx=null;renderPractice();setStatus(`Sentence ${i+1} saved.`)}return}
-  if(b.dataset.sep!=null){const i=Number(b.dataset.sep);const keep=$("seText").value;if(saveSentEdit(i,true)){V.sIdx=i;const r=currentRange();renderSentList();$("seText").value=keep;playRange(r.s,r.e,{once:true})}return}
-  if(b.dataset.ser!=null){const i=Number(b.dataset.ser);delete V.sText[i];persist();sEditIdx=null;renderPractice();return}
+  if(b.dataset.se!=null){const i=Number(b.dataset.se);if(sEditIdx===i){sEditIdx=null;renderPractice()}else openEditor(i);return}
   if(b.dataset.sp!=null){stopAll();remark=false;V.sIdx=Number(b.dataset.sp);persist();if(isNew()){if(ready)player.seekTo(lastBoundary(),true)}else seekToClip();setStatus("");renderPractice()}
   else if(b.dataset.sr!=null){stopAll();remark=false;V.sIdx=Number(b.dataset.sr);persist();renderPractice();repeat()}
   else if(b.dataset.sd!=null){
@@ -816,6 +826,15 @@ $("sentList").addEventListener("click",e=>{
     setStatus(i<sentCount()?`Removed that stop point. Sentence ${i+1} now runs to ${fmt(V.marks[i])}.`:"Removed the last stop point.");
     renderPractice();
   }
+});
+
+$("sEditBtn").addEventListener("click",()=>{if(sEditIdx!=null){sEditIdx=null;renderPractice()}else if(!isNew())openEditor(V.sIdx)});
+$("sEditor").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.dataset.sec!=null){sEditIdx=null;renderPractice();return}
+  if(b.dataset.ses!=null){const i=Number(b.dataset.ses);if(saveSentEdit(i,false)){sEditIdx=null;renderPractice();setStatus(`Sentence ${i+1} saved.`)}return}
+  if(b.dataset.sep!=null){const i=Number(b.dataset.sep);const keep=$("seText").value;if(saveSentEdit(i,true)){V.sIdx=i;renderPractice();renderEditor(true);$("seText").value=keep;const r=currentRange();playRange(r.s,r.e,{once:true})}return}
+  if(b.dataset.ser!=null){const i=Number(b.dataset.ser);delete V.sText[i];persist();sEditIdx=null;renderPractice();return}
 });
 
 // ---------- practice render ----------
@@ -842,7 +861,7 @@ function renderPractice(){
     }
   }
   if(prefs.mode==="sent"){
-    renderSentList();
+    renderSentList();renderEditor();
     const hasSubs=V.subs.length>0;
     $("autoRow").hidden=!hasSubs;$("getSubs").hidden=hasSubs;
     if(hasSubs)$("autoInfo").textContent=`${V.subs.length} subtitle lines`;
