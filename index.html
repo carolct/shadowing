@@ -94,15 +94,19 @@ details summary{cursor:pointer;font-weight:700;font-size:15px}
 @media (min-width:900px){
   .pin{margin:0;padding:8px 0 10px;top:0;box-shadow:0 10px 12px -12px rgba(0,0,0,.25)}
   .pin .playerbox{width:min(100%,calc(36vh * 16 / 9));margin:0 auto}
-  .pin #transport{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 12px}
-  .pin #transport .bigplay4{flex:1 1 360px;max-width:480px}
+  .pin #transport{margin-top:8px;display:flex;flex-wrap:nowrap;align-items:center;gap:10px;padding:8px 12px;position:relative;overflow:visible}
+  .pin #transport .bigplay4{flex:1 1 300px;max-width:460px;min-width:0;grid-template-columns:40px minmax(0,1fr) minmax(0,1fr) 40px}
+  .pin #transport .btn{white-space:nowrap}
   .pin #transport .bigplay4 .btn{min-height:42px}
   .pin #transport .recrow{flex:0 0 auto;display:flex;gap:8px}
   .pin #transport .repsrow{flex:0 0 auto;margin-left:auto}
-  .scur-slot .nudge{max-width:560px}
   .pin #transport .recrow .btn{min-height:40px;white-space:nowrap}
-  .pin #transport .status,.pin #transport #recNote{flex-basis:100%;min-height:0}
+  /* status messages float under the bar instead of adding a second row */
+  .pin #transport .status,.pin #transport #recNote{position:absolute;top:100%;margin-top:4px;min-height:0;font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:2px 12px;box-shadow:0 2px 6px rgba(0,0,0,.08);max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;z-index:2}
+  .pin #transport .status{left:12px}
+  .pin #transport #recNote{right:12px}
   .pin #transport .status:empty,.pin #transport #recNote:empty{display:none}
+  .pin{padding-bottom:30px!important}
   #m-sent .sentlist{max-height:none}
   .scur-slot .linetext{font-size:26px}
 }
@@ -154,6 +158,11 @@ details summary{cursor:pointer;font-weight:700;font-size:15px}
 .sedit{display:grid;gap:10px;padding:12px;background:var(--bg);border-bottom:1px solid var(--line)}
 .sedit textarea{font-family:var(--f-read);font-size:17px;line-height:1.45}
 .grid2t{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sbar{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
+.sbar .grp{display:inline-flex;gap:4px;flex:0 0 auto}
+.sbar>.btn,.sbar .grp .btn{flex:0 0 auto;white-space:nowrap;min-height:36px}
+.hidetog{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap;margin-left:auto;flex:0 0 auto;cursor:pointer}
+.hidetog input{width:18px;height:18px;accent-color:var(--accent)}
 .combinebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 10px;border-radius:10px;background:var(--accent-soft);color:var(--accent);font-size:14px;font-weight:600}
 .combinebar span{margin-right:auto}
 .srow label.n{display:flex;align-items:center;gap:4px;cursor:pointer}
@@ -269,7 +278,7 @@ ol.steps li{margin-bottom:6px}
         <div class="recrow">
           <button class="btn rec" id="btnRec" aria-pressed="false">● Record <kbd>V</kbd></button>
           <button class="btn" id="btnMine" disabled>▶ Mine</button>
-          <button class="btn" id="btnCompare" disabled>Original → mine</button>
+          <button class="btn" id="btnCompare" disabled title="Play the original, then your recording">⇄ Compare</button>
         </div>
         <div class="repsrow">
           <span class="eyebrow">Reps</span>
@@ -315,21 +324,21 @@ ol.steps li{margin-bottom:6px}
         <div class="confirmrow" id="sResetConfirm" hidden>Delete all sentence marks for this video? <button class="btn sm" id="sResetYes">Delete</button><button class="btn sm ghost" id="sResetNo">Keep</button></div>
         <div id="sHolder" hidden>
           <div id="sCurrent" class="stack">
-            <div id="sSubWrap" class="stack" hidden>
+            <div id="sSubWrap" hidden>
               <p class="linetext" id="sSub"></p>
-              <label class="switch">Hide the text (shadow from memory)<input type="checkbox" id="sHide"></label>
             </div>
             <div id="sEdit" class="stack">
-              <div class="nudge">
-                <button class="btn" data-sn="s:-0.2">Start −</button>
-                <button class="btn" data-sn="s:0.2">Start +</button>
-                <button class="btn" data-sn="e:-0.2">End −</button>
-                <button class="btn" data-sn="e:0.2">End +</button>
-              </div>
-              <div class="row">
-                <button class="btn sm primary" id="sEditBtn">✎ Edit sentence</button>
-                <button class="btn sm" id="sRemark">↺ Re-mark the end</button>
-                <button class="btn sm ghost" id="sMerge">Join with next</button>
+              <div class="sbar">
+                <span class="grp" role="group" aria-label="Adjust start and end">
+                  <button class="btn sm" data-sn="s:-0.2" title="Start 0.2s earlier">Start −</button>
+                  <button class="btn sm" data-sn="s:0.2" title="Start 0.2s later">Start +</button>
+                  <button class="btn sm" data-sn="e:-0.2" title="End 0.2s earlier">End −</button>
+                  <button class="btn sm" data-sn="e:0.2" title="End 0.2s later">End +</button>
+                </span>
+                <button class="btn sm primary" id="sEditBtn">✎ Edit</button>
+                <button class="btn sm" id="sRemark" title="Listen again and press Space where it should end">↺ Re-mark end</button>
+                <button class="btn sm ghost" id="sMerge">Join next</button>
+                <label class="hidetog" id="sHideWrap"><input type="checkbox" id="sHide"> Hide text</label>
               </div>
               <div id="sEditor"></div>
             </div>
@@ -817,7 +826,7 @@ let sEditIdx=null;
 function renderEditor(force){
   const box=$("sEditor");if(!box)return;
   if(sEditIdx!=null&&(prefs.mode!=="sent"||isNew()||sEditIdx!==V.sIdx))sEditIdx=null;
-  $("sEditBtn").textContent=sEditIdx!=null?"✎ Close editor":"✎ Edit sentence";
+  $("sEditBtn").textContent=sEditIdx!=null?"✎ Close":"✎ Edit";
   if(sEditIdx==null){box.innerHTML="";box.dataset.idx="";return}
   if(!force&&box.dataset.idx===String(sEditIdx))return; // keep what you're typing
   const i=sEditIdx,b=sentBounds(i),txt=sentText(i),custom=typeof V.sText[i]==="string";
@@ -954,7 +963,7 @@ function renderPractice(){
     $("autoRow").hidden=!hasSubs;$("getSubs").hidden=hasSubs;
     if(hasSubs)$("autoInfo").textContent=`${V.subs.length} subtitle lines`;
     const txt=!isNew()?sentText(V.sIdx):"";
-    $("sSubWrap").hidden=!txt;
+    $("sSubWrap").hidden=!txt;$("sHideWrap").hidden=!txt;
     if(txt){const el=$("sSub");el.className="linetext"+($("sHide").checked?" hidden":"");el.innerHTML=txt.split(/\s+/).map(w=>`<span class="w">${esc(w)}</span>`).join(" ")}
   }else{$("sListWrap").hidden=true;$("sFoot").hidden=true;$("getSubs").hidden=true}
   if(prefs.mode==="grab")renderPhrases();
