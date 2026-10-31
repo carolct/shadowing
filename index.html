@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,400;6..72,500&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: phone-first practice console. Video pinned on top, one practice panel below, tab bar at the bottom. Widens to two columns on a laptop. */
+/* Layout: phone-first practice console. Video pinned on top, one practice panel below, tab bar at the bottom. On a laptop: theater layout, video + controls pinned on top, full-width sentence list below. */
 :root{
   --bg:#EEF1F4; --surface:#FFFFFF; --sunken:#E3E8EE; --line:#CDD5DF;
   --ink:#121B2B; --muted:#5A6577; --faint:#8893A4;
@@ -90,9 +90,22 @@ details summary{cursor:pointer;font-weight:700;font-size:15px}
 
 /* practice */
 .practice{display:grid;gap:14px}
-@media (min-width:900px){.practice{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);align-items:start}.pin{position:sticky;top:12px}}
 .pin{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:var(--bg);margin-inline:-16px;padding-inline:16px;padding-block:0 6px}
-@media (min-width:900px){.pin{margin:0;padding:0}}
+@media (min-width:900px){
+  .pin{margin:0;padding:8px 0 10px;top:0;box-shadow:0 10px 12px -12px rgba(0,0,0,.25)}
+  .pin .playerbox{width:min(100%,calc(36vh * 16 / 9));margin:0 auto}
+  .pin #transport{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 12px}
+  .pin #transport .bigplay4{flex:1 1 360px;max-width:480px}
+  .pin #transport .bigplay4 .btn{min-height:42px}
+  .pin #transport .recrow{flex:0 0 auto;display:flex;gap:8px}
+  .pin #transport .repsrow{flex:0 0 auto;margin-left:auto}
+  .scur-slot .nudge{max-width:560px}
+  .pin #transport .recrow .btn{min-height:40px;white-space:nowrap}
+  .pin #transport .status,.pin #transport #recNote{flex-basis:100%;min-height:0}
+  .pin #transport .status:empty,.pin #transport #recNote:empty{display:none}
+  #m-sent .sentlist{max-height:none}
+  .scur-slot .linetext{font-size:26px}
+}
 .playerbox{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:var(--r);overflow:hidden}
 .playerbox #player,.playerbox iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
 .modes{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--sunken);border-radius:12px;padding:4px;gap:4px}
@@ -786,8 +799,12 @@ function renderSentList(){
   const list=$("sentList");list.innerHTML=h;renderCombineBar();
   const slot=$("sCurSlot");if(slot)slot.appendChild($("sCurrent"));
   const cur=list.querySelector('[aria-current="true"]');
-  if(cur){const lr=list.getBoundingClientRect(),cr=cur.getBoundingClientRect(),end=slot?slot.getBoundingClientRect().bottom:cr.bottom;
-    if(cr.top<lr.top||end>lr.bottom)list.scrollTop+=cr.top-lr.top-8}
+  if(cur){const end=slot?slot.getBoundingClientRect().bottom:cur.getBoundingClientRect().bottom,cr=cur.getBoundingClientRect();
+    if(list.scrollHeight>list.clientHeight+2){const lr=list.getBoundingClientRect();if(cr.top<lr.top||end>lr.bottom)list.scrollTop+=cr.top-lr.top-8}
+    else if(!$("t-practice").hidden){ // wide layout: the page scrolls under the pinned video
+      const top=(document.querySelector(".pin").getBoundingClientRect().bottom||0)+8;
+      if(cr.top<top||end>window.innerHeight-8)window.scrollBy({top:cr.top-top,behavior:"smooth"});
+    }}
 }
 function sentText(i){const t=V.sText[i];if(typeof t==="string")return t;const b=sentBounds(i);return subsIn(b.s,b.e)}
 function parseTime(str){
@@ -897,6 +914,16 @@ $("sEditor").addEventListener("click",e=>{
   if(b.dataset.sep!=null){const i=Number(b.dataset.sep);const keep=$("seText").value;if(saveSentEdit(i,true)){V.sIdx=i;renderPractice();renderEditor(true);$("seText").value=keep;const r=currentRange();playRange(r.s,r.e,{once:true})}return}
   if(b.dataset.ser!=null){const i=Number(b.dataset.ser);delete V.sText[i];persist();sEditIdx=null;renderPractice();return}
 });
+
+// Wide screens: pin the controls under the video (theater layout). Phones: controls stay in the page.
+const wideMQ=window.matchMedia("(min-width:900px)");
+function placeTransport(){
+  const t=$("transport"),pin=document.querySelector(".pin");
+  if(wideMQ.matches){if(t.parentElement!==pin)pin.appendChild(t)}
+  else{const modes=document.querySelector("#t-practice .modes");if(t.previousElementSibling!==modes)modes.after(t)}
+}
+placeTransport();
+(wideMQ.addEventListener?wideMQ.addEventListener("change",placeTransport):wideMQ.addListener(placeTransport));
 
 // ---------- practice render ----------
 function renderPractice(){
