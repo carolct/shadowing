@@ -245,6 +245,28 @@ ol.steps li{margin-bottom:6px}
         <button data-mode="lines" id="modeLines">Lines</button>
       </div>
 
+      <!-- shared transport: play, record, reps -->
+      <div class="card stack" id="transport">
+        <div class="bigplay4">
+          <button class="btn" id="tPrev" aria-label="Previous clip">‹</button>
+          <button class="btn primary" id="tPlay">▶ Play <kbd>Space</kbd></button>
+          <button class="btn repc" id="tRepeat">↻ Repeat <kbd>R</kbd></button>
+          <button class="btn" id="tNext" aria-label="Next clip">›</button>
+        </div>
+        <div class="recrow">
+          <button class="btn rec" id="btnRec" aria-pressed="false">● Record <kbd>V</kbd></button>
+          <button class="btn" id="btnMine" disabled>▶ Mine</button>
+          <button class="btn" id="btnCompare" disabled>Original → mine</button>
+        </div>
+        <div class="repsrow">
+          <span class="eyebrow">Reps</span>
+          <div class="dots" id="dots"></div>
+          <button class="btn sm" id="btnRep">+1 rep <kbd>Enter</kbd></button>
+        </div>
+        <div class="status" id="status"></div>
+        <span class="note" id="recNote"></span>
+      </div>
+
       <!-- sentences: mark as you go -->
       <div class="card stack" id="m-sent" hidden>
         <div id="getSubs" class="getsubs" hidden>
@@ -327,28 +349,6 @@ ol.steps li{margin-bottom:6px}
         <p class="linetext" id="lineText"></p>
         <label class="switch">Hide the text (shadow from memory)<input type="checkbox" id="lHide"></label>
         <div class="lines" id="lineList"></div>
-      </div>
-
-      <!-- shared transport: play, record, reps -->
-      <div class="card stack" id="transport">
-        <div class="bigplay4">
-          <button class="btn" id="tPrev" aria-label="Previous clip">‹</button>
-          <button class="btn primary" id="tPlay">▶ Play <kbd>Space</kbd></button>
-          <button class="btn repc" id="tRepeat">↻ Repeat <kbd>R</kbd></button>
-          <button class="btn" id="tNext" aria-label="Next clip">›</button>
-        </div>
-        <div class="recrow">
-          <button class="btn rec" id="btnRec" aria-pressed="false">● Record <kbd>V</kbd></button>
-          <button class="btn" id="btnMine" disabled>▶ Mine</button>
-          <button class="btn" id="btnCompare" disabled>Original → mine</button>
-        </div>
-        <div class="repsrow">
-          <span class="eyebrow">Reps</span>
-          <div class="dots" id="dots"></div>
-          <button class="btn sm" id="btnRep">+1 rep <kbd>Enter</kbd></button>
-        </div>
-        <div class="status" id="status"></div>
-        <span class="note" id="recNote"></span>
       </div>
 
       <details class="card">
